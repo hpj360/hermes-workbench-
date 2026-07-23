@@ -1,0 +1,30 @@
+{
+  "name": "figma-reader",
+  "version": "0.1.0",
+  "description": "Figma REST API 封装，读取文件/节点/组件/图片",
+  "layer": 1,
+  "category": "ui-design",
+  "created": "2026-07-23",
+  "tags": ["figma", "rest-api", "design-tokens", "read-only"],
+  "dependencies": {
+    "python": ["requests >= 2.28"]
+  },
+  "env": {
+    "FIGMA_TOKEN": "Figma Personal Access Token（必填）"
+  },
+  "endpoints": [
+    "GET /v1/files/{file_key}",
+    "GET /v1/files/{file_key}/nodes",
+    "GET /v1/images/{file_key}",
+    "GET /v1/files/{file_key}/components"
+  ],
+  "rate_limit": "60 req/min",
+  "scripts": {
+    "client": "scripts/client.py",
+    "read_file": "scripts/read_file.py",
+    "read_nodes": "scripts/read_nodes.py",
+    "export_images": "scripts/export_images.py",
+    "export_components": "scripts/export_components.py",
+    "parse_url": "scripts/parse_url.py"
+  }
+}

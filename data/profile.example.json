@@ -1,0 +1,106 @@
+{
+  "version": 4,
+  "updated_at": null,
+  "basic_info": {
+    "name": null,
+    "nickname": null,
+    "gender": null,
+    "age_range": null,
+    "location": null,
+    "city_district": null,
+    "timezone": "Asia/Shanghai",
+    "occupation": null,
+    "industry": null,
+    "education": null,
+    "phone": null,
+    "expected_salary": null,
+    "current_base_salary": null,
+    "work_experience_years": null,
+    "mbti": null,
+    "employment_status": null
+  },
+  "contact": {
+    "email": null,
+    "github": "hpj360",
+    "wechat": null,
+    "blog": null,
+    "website": null
+  },
+  "social_accounts": {
+    "douyin": {"id": null, "platform": "抖音", "fans": null, "status": null},
+    "xiaohongshu": {"id": null, "platform": "小红书", "fans": null, "status": null},
+    "video_channel": {"platform": "微信视频号", "fans": null, "status": null}
+  },
+  "pets": [],
+  "career": {
+    "tags": [],
+    "summary": null,
+    "skills_detail": {
+      "sql_and_data": [],
+      "big_data_ecosystem": [],
+      "platforms_and_tools": []
+    },
+    "work_experience": [],
+    "projects": [],
+    "campus_experience": []
+  },
+  "skills": {
+    "programming_languages": [],
+    "frameworks": [],
+    "tools": [],
+    "domains": [],
+    "languages_spoken": [],
+    "skill_level": {}
+  },
+  "alcohol_preferences": {
+    "craft_beer_ranking": [],
+    "whiskey_preference": {
+      "ranking": [],
+      "favorite_distilleries": [],
+      "favorite_bottles": []
+    },
+    "cocktail": {"style": null, "home_bar": false, "note": null},
+    "gin": {"preference": null, "favorite_brands": []},
+    "identity": null
+  },
+  "interests": {
+    "tech_interests": [],
+    "hobbies": [],
+    "reading": [],
+    "music": [],
+    "sports": [],
+    "film_directors": [],
+    "film_genres": [],
+    "food": {"preference": null, "signature_dishes": null, "style": null},
+    "photography": {"subjects": [], "equipment": []},
+    "script_kill": {"preferred_types": []},
+    "theater": null,
+    "investing": [],
+    "ski_resorts": [],
+    "fitness": {"goal": null, "frequency": null},
+    "other_interests": []
+  },
+  "content_creation": {
+    "status": null,
+    "video_styles": [],
+    "update_frequency": null,
+    "directions": [],
+    "platforms": [],
+    "hermes_priority_tasks": [],
+    "hermes_roles": []
+  },
+  "work_style": {
+    "preferred_language": "中文",
+    "code_style": [],
+    "work_habits": [],
+    "communication_style": [],
+    "tools_preferred": []
+  },
+  "personal_projects": [],
+  "goals": {
+    "short_term": [],
+    "long_term": [],
+    "learning": []
+  },
+  "notes": ""
+}

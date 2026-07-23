@@ -1,0 +1,25 @@
+{
+  "name": "liquid-glass-builder",
+  "version": "0.1.0",
+  "description": "Apple WWDC 2025 Liquid Glass 设计语言实施器（Web + iOS 双端）",
+  "layer": 5,
+  "category": "ui-design",
+  "created": "2026-07-23",
+  "tags": ["ui", "design-system", "apple", "wwdc25", "liquid-glass", "swiftui", "react"],
+  "dependencies": {
+    "web": ["react >= 18.0", "typescript >= 5.0"],
+    "ios": ["SwiftUI (iOS 17+)", "Xcode 15+"]
+  },
+  "scripts": {
+    "web_to_ios": "scripts/web_to_ios.py"
+  },
+  "outputs": {
+    "web": ["liquid-glass.css", "GlassPanel.tsx", "useGlass.ts"],
+    "ios": ["LiquidGlassView.swift"]
+  },
+  "compliance": {
+    "accessibility": "WCAG 2.1 AA（玻璃背后必须保证 4.5:1 对比度）",
+    "performance": "Lighthouse 性能分 >= 85（限制 backdrop-filter 同时使用数量 <= 3）",
+    "browser": "Chrome 76+, Safari 9+, Firefox 103+（backdrop-filter 需 prefix）"
+  }
+}

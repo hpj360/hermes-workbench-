@@ -1,0 +1,108 @@
+/* Liquid Glass CSS 变量 + 工具类
+ * 参考：Apple WWDC 2025 Liquid Glass 设计语言
+ * 适用：Chrome 76+, Safari 9+, Firefox 103+
+ */
+
+:root {
+  /* === 基础变量 === */
+  --glass-blur-sm: 12px;
+  --glass-blur-md: 24px;
+  --glass-blur-lg: 40px;
+
+  --glass-alpha-light: 0.6;
+  --glass-alpha-dark: 0.25;
+
+  --glass-border-light: rgba(255, 255, 255, 0.3);
+  --glass-border-dark: rgba(255, 255, 255, 0.1);
+
+  --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+
+  --glass-radius: 12px;
+  --glass-radius-lg: 20px;
+
+  /* === 主题覆盖 === */
+  --glass-bg: rgba(255, 255, 255, var(--glass-alpha-light));
+  --glass-border: 1px solid var(--glass-border-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-bg: rgba(20, 20, 20, var(--glass-alpha-dark));
+    --glass-border: 1px solid var(--glass-border-dark);
+  }
+}
+
+/* === 基础工具类 === */
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md));
+  backdrop-filter: blur(var(--glass-blur-md));
+  border: var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+/* === 变体：blur 强度 === */
+.glass-sm { backdrop-filter: blur(var(--glass-blur-sm)); -webkit-backdrop-filter: blur(var(--glass-blur-sm)); }
+.glass-md { backdrop-filter: blur(var(--glass-blur-md)); -webkit-backdrop-filter: blur(var(--glass-blur-md)); }
+.glass-lg { backdrop-filter: blur(var(--glass-blur-lg)); -webkit-backdrop-filter: blur(var(--glass-blur-lg)); }
+
+/* === 变体：alpha 强度 === */
+.glass-solid  { --glass-alpha-light: 0.85; --glass-alpha-dark: 0.75; }
+.glass-medium { --glass-alpha-light: 0.6;  --glass-alpha-dark: 0.4; }
+.glass-faint  { --glass-alpha-light: 0.4;  --glass-alpha-dark: 0.2; }
+
+/* === 顶部高光 === */
+.glass-highlight::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+}
+
+/* === 色散边缘（可选） === */
+.glass-dispersion::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg,
+    rgba(255, 100, 100, 0.3),
+    rgba(100, 255, 100, 0.2),
+    rgba(100, 100, 255, 0.3));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* === 性能优化：触发 GPU 合成 === */
+.glass-gpu {
+  transform: translateZ(0);
+  will-change: backdrop-filter;
+}
+
+/* === 降级 === */
+@supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+  .glass {
+    background: rgba(255, 255, 255, 0.92);
+  }
+  @media (prefers-color-scheme: dark) {
+    .glass {
+      background: rgba(20, 20, 20, 0.92);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass { backdrop-filter: none; -webkit-backdrop-filter: none; }
+}

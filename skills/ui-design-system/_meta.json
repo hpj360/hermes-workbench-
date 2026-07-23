@@ -1,0 +1,19 @@
+{
+  "name": "ui-design-system",
+  "version": "0.1.0",
+  "description": "Design Token 校验 + 多端代码生成（CSS/Tailwind/Swift/Android）",
+  "layer": 1,
+  "category": "ui-design",
+  "created": "2026-07-23",
+  "tags": ["design-tokens", "css", "tailwind", "swift", "android", "style-dictionary"],
+  "token_categories": ["color", "typography", "spacing", "radius", "shadow", "motion"],
+  "scripts": {
+    "validate": "scripts/validate.py",
+    "generate_css": "scripts/generate_css.py",
+    "generate_tailwind": "scripts/generate_tailwind.py",
+    "generate_swift": "scripts/generate_swift.py",
+    "generate_android": "scripts/generate_android.py",
+    "audit": "scripts/audit.py"
+  },
+  "outputs": ["dist/tokens.css", "tailwind.config.js", "dist/Tokens.swift", "dist/colors.xml"]
+}

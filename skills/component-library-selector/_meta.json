@@ -1,0 +1,15 @@
+{
+  "name": "component-library-selector",
+  "version": "0.1.0",
+  "description": "组件库选型决策助手（13+ 库 × 8 维度加权评分）",
+  "layer": 2,
+  "category": "ui-design",
+  "created": "2026-07-23",
+  "tags": ["component-library", "selection", "scoring", "shadcn", "ant-design", "radix"],
+  "dimensions": 8,
+  "libraries_count": 13,
+  "scripts": {
+    "select": "scripts/select.py",
+    "compare": "scripts/compare.py"
+  }
+}

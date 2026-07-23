@@ -1,0 +1,42 @@
+{
+  "name": "hermes",
+  "version": "0.2.0",
+  "main_repo_path": "/workspace/OpenClaw/openclaw-main",
+  "inherited_from": [
+    "/workspace/.trae/skills",
+    "/workspace/.trae/docs/knowledge"
+  ],
+  "skills": [
+    "agent-browser",
+    "aipm-news-digest",
+    "brave-search",
+    "douyin-reader",
+    "find-skills",
+    "frontend-design",
+    "github",
+    "loop-engineering",
+    "notion",
+    "obsidian",
+    "product-manager",
+    "product-manager-skills",
+    "pskoett",
+    "self-improving-agent",
+    "skill-creator",
+    "skill-manager",
+    "skill-vetter",
+    "stock-analysis",
+    "summarize",
+    "tavily-search",
+    "trello",
+    "weather",
+    "wechat-reader",
+    "youtube-watcher"
+  ],
+  "knowledge": [
+    "evaluator-subagent-template.md",
+    "harness-engineering.md",
+    "memory-model.md",
+    "skill-and-loop.md"
+  ],
+  "notes": "Skills and knowledge documents are copied from the main repository. Each skill may have its own runtime dependencies; check the individual SKILL.md files."
+}

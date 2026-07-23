@@ -1,0 +1,9 @@
+{
+  "projectToken": "${CHROMATIC_PROJECT_TOKEN}",
+  "buildScriptName": "build-storybook",
+  "outputDir": "storybook-static",
+  "externals": [],
+  "traceChanged": "expanded",
+  "onlyChanged": false,
+  "skip": "renamed"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "style-dictionary-sync",
+  "version": "0.1.0",
+  "description": "DTCG 标准 token 多端同步器（8 端产物，零依赖）",
+  "layer": 2,
+  "category": "ui-design",
+  "created": "2026-07-23",
+  "tags": ["style-dictionary", "dtcg", "multi-platform", "tokens", "sync"],
+  "platforms": ["css", "scss", "js", "ts", "swift", "android", "flutter", "compose"],
+  "scripts": {
+    "sync": "scripts/sync.py",
+    "resolve": "scripts/resolve.py"
+  }
+}

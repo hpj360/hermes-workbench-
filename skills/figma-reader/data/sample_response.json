@@ -1,0 +1,56 @@
+{
+  "file_response": {
+    "name": "Mock Design System",
+    "lastModified": "2026-07-23T00:00:00Z",
+    "version": "1234567890",
+    "document": {
+      "id": "0:0",
+      "name": "Document",
+      "type": "DOCUMENT",
+      "children": [
+        {
+          "id": "1:1",
+          "name": "Page 1",
+          "type": "CANVAS",
+          "children": [
+            {
+              "id": "1:2",
+              "name": "Button/Primary",
+              "type": "COMPONENT",
+              "description": "Primary action button"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "nodes_response": {
+    "nodes": {
+      "1:2": {
+        "document": {
+          "id": "1:2",
+          "name": "Button/Primary",
+          "type": "COMPONENT"
+        }
+      }
+    }
+  },
+  "images_response": {
+    "images": {
+      "1:2": "https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/mock.png"
+    }
+  },
+  "components_response": {
+    "meta": {
+      "components": [
+        {
+          "key": "abc123",
+          "node_id": "1:2",
+          "name": "Button/Primary",
+          "description": "Primary action button",
+          "containing_frame": {"name": "Components"}
+        }
+      ]
+    }
+  }
+}

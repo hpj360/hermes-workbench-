@@ -1,0 +1,22 @@
+{
+  "name": "prototype-validator",
+  "version": "0.1.0",
+  "description": "Playwright + axe-core 自动验证前端原型",
+  "author": "Hermes Agent",
+  "license": "Apache-2.0",
+  "category": "design",
+  "tags": ["playwright", "axe-core", "a11y", "visual-regression", "lighthouse", "validation"],
+  "capabilities": [
+    "a11y_check",
+    "visual_regression",
+    "performance_audit",
+    "interaction_test",
+    "full_report"
+  ],
+  "dependencies": {
+    "python_optional": ["playwright", "axe-core-python"],
+    "node_optional": ["@playwright/test", "@axe-core/playwright", "lighthouse"],
+    "system": ["chromium-browser"]
+  },
+  "validation_dimensions": ["a11y", "visual", "performance", "interaction"]
+}

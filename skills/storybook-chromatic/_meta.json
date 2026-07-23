@@ -1,0 +1,19 @@
+{
+  "name": "storybook-chromatic",
+  "version": "0.1.0",
+  "description": "Storybook + Chromatic design-code 闭环",
+  "author": "Hermes Agent",
+  "license": "Apache-2.0",
+  "category": "design",
+  "tags": ["storybook", "chromatic", "visual-regression", "design-system", "react"],
+  "capabilities": [
+    "init_storybook",
+    "sync_figma_to_story",
+    "run_chromatic",
+    "review_pr"
+  ],
+  "dependencies": {
+    "python": ["requests"],
+    "node_optional": ["@storybook/react", "chromatic", "storybook"]
+  }
+}

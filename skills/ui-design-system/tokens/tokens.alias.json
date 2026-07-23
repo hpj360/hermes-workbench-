@@ -1,0 +1,26 @@
+{
+  "color": {
+    "primary":   "{color.blue.500}",
+    "primary-hover": "{color.blue.600}",
+    "surface":   "{color.gray.0}",
+    "surface-muted": "{color.gray.50}",
+    "text":      "{color.gray.900}",
+    "text-muted": "{color.gray.500}",
+    "border":    "{color.gray.100}",
+    "danger":    "{color.red.500}",
+    "success":   "{color.green.500}",
+    "warning":   "{color.yellow.500}"
+  },
+  "font": {
+    "body":     "{font.size.md}",
+    "body-sm":  "{font.size.sm}",
+    "heading":  "{font.size.2xl}",
+    "caption":  "{font.size.xs}"
+  },
+  "space": {
+    "card-padding": "{space.4}",
+    "page-padding": "{space.6}"
+  },
+  "radius": { "button": "{radius.md}", "card": "{radius.lg}" },
+  "shadow": { "card": "{shadow.md}", "modal": "{shadow.xl}" }
+}

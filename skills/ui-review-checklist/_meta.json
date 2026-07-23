@@ -1,0 +1,17 @@
+{
+  "name": "ui-review-checklist",
+  "version": "0.1.0",
+  "description": "UI 评审检查清单 + 13 类反模式扫描器",
+  "layer": 1,
+  "category": "ui-design",
+  "created": "2026-07-23",
+  "tags": ["review", "checklist", "anti-pattern", "ai-slop", "a11y"],
+  "anti_patterns": 13,
+  "a11y_items": 13,
+  "perf_items": 8,
+  "scripts": {
+    "scan": "scripts/scan.py",
+    "score": "scripts/score.py",
+    "report": "scripts/report.py"
+  }
+}

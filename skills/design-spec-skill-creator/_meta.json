@@ -1,0 +1,21 @@
+{
+  "name": "design-spec-skill-creator",
+  "version": "0.1.0",
+  "description": "把设计规范转为可分发 Skill",
+  "author": "Hermes Agent",
+  "license": "Apache-2.0",
+  "category": "design",
+  "tags": ["meta-skill", "design-system", "skill-generation"],
+  "capabilities": [
+    "from_notion",
+    "from_figma",
+    "from_markdown",
+    "from_pdf",
+    "package_skill"
+  ],
+  "dependencies": {
+    "python": [],
+    "skills": ["notion", "figma-reader", "skill-creator"]
+  },
+  "templates": ["tokens", "component", "pattern", "full"]
+}

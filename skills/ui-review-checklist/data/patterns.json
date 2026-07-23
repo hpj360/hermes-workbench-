@@ -1,0 +1,32 @@
+{
+  "anti_patterns": [
+    {"id": "inter-font", "name": "Inter 字体", "severity": "high", "pattern": "font-family[: ]+['\"]?Inter", "file_types": [".css", ".scss", ".tsx", ".jsx", ".vue", ".html"], "score": -10, "fix": "使用系统字体或定制字体（避免 Inter/Roboto/Source Sans）"},
+    {"id": "purple-blue-gradient", "name": "紫蓝渐变", "severity": "high", "pattern": "linear-gradient.*#[6-9a-fA-F][0-9a-fA-F]?[0-9a-fA-F]?FF.*#[6-9a-fA-F][0-9a-fA-F]?[0-9a-fA-F]?FF", "file_types": [".css", ".scss", ".tsx", ".jsx", ".vue"], "score": -8, "fix": "使用业务色或中性渐变（黑-白/灰-灰）"},
+    {"id": "card-overload", "name": "卡片化布局滥用", "severity": "medium", "pattern": "", "file_types": [".tsx", ".jsx", ".vue"], "score": -5, "manual": true, "fix": "每屏卡片数不超过 5-8 个，其余用列表/表格"},
+    {"id": "emoji-icon", "name": "emoji 当图标", "severity": "medium", "pattern": "[\\u{1F300}-\\u{1F9FF}]", "file_types": [".tsx", ".jsx", ".vue", ".html"], "score": -6, "fix": "使用 Lucide/Phosphor/Tabler 等专业图标库"},
+    {"id": "placeholder-image", "name": "占位图", "severity": "high", "pattern": "picsum\\.photos|unsplash\\.com/photos|placeholder\\.com", "file_types": [".tsx", ".jsx", ".vue", ".html", ".md"], "score": -8, "fix": "使用真实图片或业务自定义图"},
+    {"id": "uniform-radius", "name": "统一圆角", "severity": "low", "pattern": "border-radius:\\s*8px|border-radius:\\s*12px", "file_types": [".css", ".scss"], "score": -3, "manual": true, "fix": "使用 4/8/12/16/24 多级圆角"},
+    {"id": "center-overuse", "name": "居中对称过度", "severity": "low", "pattern": "", "file_types": [".tsx", ".jsx", ".vue"], "score": -3, "manual": true, "fix": "引入不对称布局（2:1 / 3:1 比例）"},
+    {"id": "12-col-grid-only", "name": "12 列栅格死板", "severity": "low", "pattern": "grid-cols-12|col-12|col-md-12", "file_types": [".tsx", ".jsx", ".vue", ".html"], "score": -3, "manual": true, "fix": "使用 12/16/24 多种栅格"},
+    {"id": "template-shadow", "name": "模板阴影", "severity": "low", "pattern": "box-shadow:\\s*0\\s+4px\\s+6px.*rgba?\\(0,\\s*0,\\s*0,\\s*0\\.1\\)", "file_types": [".css", ".scss"], "score": -3, "fix": "使用物理性阴影（光源方向 + 接触阴影 + 环境阴影）"},
+    {"id": "default-transition", "name": "默认动效", "severity": "low", "pattern": "transition:\\s*all\\s+0?\\.?2s|transition-duration:\\s*200ms", "file_types": [".css", ".scss"], "score": -3, "fix": "按距离+权重设计动效曲线"},
+    {"id": "single-font-size", "name": "单一字号", "severity": "low", "pattern": "", "file_types": [".tsx", ".jsx", ".vue"], "score": -3, "manual": true, "fix": "使用 12/14/16/18/20/24/30 多级字号"},
+    {"id": "template-button", "name": "模板按钮", "severity": "medium", "pattern": "", "file_types": [".tsx", ".jsx", ".vue"], "score": -5, "manual": true, "fix": "4 种 button variant：primary/secondary/ghost/destructive"},
+    {"id": "gray-only", "name": "纯灰配色", "severity": "low", "pattern": "", "file_types": [".css", ".scss", ".tsx", ".jsx", ".vue"], "score": -3, "manual": true, "fix": "中性色 + 1-2 个品牌色相"}
+  ],
+  "a11y_items": [
+    {"id": "text-contrast", "name": "文本对比度 >= 4.5:1", "pattern": ""},
+    {"id": "large-text-contrast", "name": "大文本对比度 >= 3:1", "pattern": ""},
+    {"id": "tap-target", "name": "交互元素 >= 44x44", "pattern": ""},
+    {"id": "focus-ring", "name": "焦点环可见", "pattern": "outline:\\s*none(?!.*focus-visible)"},
+    {"id": "color-only-info", "name": "颜色不是唯一信息载体", "pattern": ""},
+    {"id": "form-label", "name": "表单有 label", "pattern": ""},
+    {"id": "error-msg", "name": "错误消息明确", "pattern": ""},
+    {"id": "alt-attr", "name": "alt 属性", "pattern": "<img(?![^>]*alt=)"},
+    {"id": "semantic-tags", "name": "语义化标签", "pattern": ""},
+    {"id": "keyboard-accessible", "name": "键盘可达", "pattern": ""},
+    {"id": "skip-nav", "name": "跳过导航", "pattern": ""},
+    {"id": "aria-correct", "name": "ARIA 正确", "pattern": ""},
+    {"id": "reduced-motion", "name": "prefers-reduced-motion", "pattern": "@media\\s*\\(\\s*prefers-reduced-motion"}
+  ]
+}
