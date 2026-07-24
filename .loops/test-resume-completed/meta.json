@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "pattern": "knowledge-hygiene",
+  "stage": "l1_report",
+  "status": "needs_human",
+  "created_at": "2026-07-24T13:33:17.344415+00:00",
+  "last_run": "2026-07-24T13:33:17.387673+00:00",
+  "current_round": 2,
+  "max_rounds": 2,
+  "rounds": [
+    {
+      "round_num": 1,
+      "timestamp": "2026-07-24T13:33:17.361342+00:00",
+      "action": "L1 knowledge hygiene scan",
+      "result_summary": "High: 1, Watch: 17, Noise: 10",
+      "verifier_result": "{'high_priority_count': 1, 'watch_list_count': 17, 'noise_count': 10}",
+      "passed": false,
+      "next_action": "",
+      "failure_count": 18,
+      "failure_items": [
+        "Skill 'pskoett' missing SKILL.md",
+        "Skill 'figma-reader' exists but not in manifest.json",
+        "Skill 'ui-review-checklist' exists but not in manifest.json",
+        "Skill 'prototype-validator' exists but not in manifest.json",
+        "Skill 'ui-design-system' exists but not in manifest.json",
+        "Skill 'storybook-chromatic' exists but not in manifest.json",
+        "Skill 'liquid-glass-builder' exists but not in manifest.json",
+        "Skill 'style-dictionary-sync' exists but not in manifest.json",
+        "Skill 'design-spec-skill-creator' exists but not in manifest.json",
+        "Skill 'component-library-selector' exists but not in manifest.json",
+        "Knowledge 'DECISIONS.md' exists but not in manifest.json",
+        "Knowledge 'architecture.md' exists but not in manifest.json",
+        "Knowledge 'skill-sync-management.md' exists but not in manifest.json",
+        "Knowledge 'builder-checker-loop.md' exists but not in manifest.json",
+        "Knowledge 'ui-design-stack.md' exists but not in manifest.json",
+        "Knowledge 'working-principles.md' exists but not in manifest.json",
+        "Knowledge 'loop-engineering.md' exists but not in manifest.json",
+        "README.md doesn't mention Skill Sync feature yet"
+      ],
+      "tokens_used": 0,
+      "agent_reports": {},
+      "baseline_failures": [],
+      "escalation_info": {}
+    },
+    {
+      "round_num": 2,
+      "timestamp": "2026-07-24T13:33:17.380975+00:00",
+      "action": "L1 knowledge hygiene scan",
+      "result_summary": "High: 1, Watch: 17, Noise: 10",
+      "verifier_result": "{'high_priority_count': 1, 'watch_list_count': 17, 'noise_count': 10}",
+      "passed": false,
+      "next_action": "",
+      "failure_count": 18,
+      "failure_items": [
+        "Skill 'pskoett' missing SKILL.md",
+        "Skill 'figma-reader' exists but not in manifest.json",
+        "Skill 'ui-review-checklist' exists but not in manifest.json",
+        "Skill 'prototype-validator' exists but not in manifest.json",
+        "Skill 'ui-design-system' exists but not in manifest.json",
+        "Skill 'storybook-chromatic' exists but not in manifest.json",
+        "Skill 'liquid-glass-builder' exists but not in manifest.json",
+        "Skill 'style-dictionary-sync' exists but not in manifest.json",
+        "Skill 'design-spec-skill-creator' exists but not in manifest.json",
+        "Skill 'component-library-selector' exists but not in manifest.json",
+        "Knowledge 'DECISIONS.md' exists but not in manifest.json",
+        "Knowledge 'architecture.md' exists but not in manifest.json",
+        "Knowledge 'skill-sync-management.md' exists but not in manifest.json",
+        "Knowledge 'builder-checker-loop.md' exists but not in manifest.json",
+        "Knowledge 'ui-design-stack.md' exists but not in manifest.json",
+        "Knowledge 'working-principles.md' exists but not in manifest.json",
+        "Knowledge 'loop-engineering.md' exists but not in manifest.json",
+        "README.md doesn't mention Skill Sync feature yet"
+      ],
+      "tokens_used": 0,
+      "agent_reports": {},
+      "baseline_failures": [],
+      "escalation_info": {
+        "current_round": 2,
+        "max_rounds": 2,
+        "failed_items": [
+          "Skill 'pskoett' missing SKILL.md",
+          "Skill 'figma-reader' exists but not in manifest.json",
+          "Skill 'ui-review-checklist' exists but not in manifest.json",
+          "Skill 'prototype-validator' exists but not in manifest.json",
+          "Skill 'ui-design-system' exists but not in manifest.json",
+          "Skill 'storybook-chromatic' exists but not in manifest.json",
+          "Skill 'liquid-glass-builder' exists but not in manifest.json",
+          "Skill 'style-dictionary-sync' exists but not in manifest.json",
+          "Skill 'design-spec-skill-creator' exists but not in manifest.json",
+          "Skill 'component-library-selector' exists but not in manifest.json",
+          "Knowledge 'DECISIONS.md' exists but not in manifest.json",
+          "Knowledge 'architecture.md' exists but not in manifest.json",
+          "Knowledge 'skill-sync-management.md' exists but not in manifest.json",
+          "Knowledge 'builder-checker-loop.md' exists but not in manifest.json",
+          "Knowledge 'ui-design-stack.md' exists but not in manifest.json",
+          "Knowledge 'working-principles.md' exists but not in manifest.json",
+          "Knowledge 'loop-engineering.md' exists but not in manifest.json",
+          "README.md doesn't mention Skill Sync feature yet"
+        ],
+        "attempts": [
+          {
+            "round": 1,
+            "action": "L1 knowledge hygiene scan",
+            "result": "High: 1, Watch: 17, Noise: 10"
+          },
+          {
+            "round": 2,
+            "action": "L1 knowledge hygiene scan",
+            "result": "High: 1, Watch: 17, Noise: 10"
+          }
+        ]
+      }
+    }
+  ],
+  "budget_used_tokens": 0,
+  "budget_limit_tokens": 500000,
+  "high_priority_items": [],
+  "watch_list": [],
+  "noise_items": [],
+  "baseline_failures": [],
+  "audit_warnings": [],
+  "deliverables": []
+}

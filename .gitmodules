@@ -1,0 +1,3 @@
+[submodule "ai-workbench"]
+	path = ai-workbench
+	url = https://github.com/hpj360/ai-workbench
