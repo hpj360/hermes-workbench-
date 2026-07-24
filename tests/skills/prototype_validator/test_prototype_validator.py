@@ -16,7 +16,7 @@ class TestRunAll:
         subprocess.run(
             [sys.executable, str(SCRIPTS / "run_all.py"),
              "--url", "http://example.invalid", "--output-dir", str(tmp_path)],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=30, check=False,
         )
         # mock 模式下应该能跑完（exit 0 或 1 都可）
         report_files = sorted(tmp_path.glob("*.json"))
@@ -30,7 +30,7 @@ class TestRunAll:
         subprocess.run(
             [sys.executable, str(SCRIPTS / "run_all.py"),
              "--url", "http://mock.test", "--output-dir", str(tmp_path)],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=30, check=False,
         )
         perf_report = tmp_path / "perf.json"
         if perf_report.exists():

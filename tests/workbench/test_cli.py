@@ -18,11 +18,11 @@ from hermes.workbench.cli import (
     TaskStore,
     add_workbench_subparser,
     cmd_workbench_loop,
+    cmd_workbench_memory_episodes_list,
     cmd_workbench_memory_facts_forget,
     cmd_workbench_memory_facts_get,
     cmd_workbench_memory_facts_list,
     cmd_workbench_memory_facts_remember,
-    cmd_workbench_memory_episodes_list,
     cmd_workbench_memory_profile_show,
     cmd_workbench_run,
     cmd_workbench_serve,
@@ -38,7 +38,6 @@ from hermes.workbench.cli import (
 )
 from hermes.workbench.memory import MemoryService
 from hermes.workbench.skill_runner import RunResult, SkillSpec
-
 
 # ---------------------------------------------------------------------------
 # Fakes / helpers
@@ -360,6 +359,111 @@ def test_scheduler_list_rounds_missing_returns_empty(tmp_path: Path) -> None:
     reg = TaskRegistry()
     sched = TaskScheduler(store=store, registry=reg, runner=runner, memory=mem)
     assert sched.list_rounds("nope") == []
+
+
+# ---------------------------------------------------------------------------
+# TaskScheduler: recurring mode
+# ---------------------------------------------------------------------------
+
+
+def test_scheduler_recurring_runs_multiple_times(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = FakeRunner([], {"alpha": _run_result_ok("alpha")})
+    mem = MemoryService(state_dir=tmp_path / "m")
+    store = TaskStore(state_dir=tmp_path / "s")
+    reg = TaskRegistry()
+    sched = TaskScheduler(store=store, registry=reg, runner=runner, memory=mem)
+    task = Task(
+        task_id="t1",
+        plan=[{"skill": "alpha"}],
+        mode="recurring",
+        max_runs=3,
+        interval=1.5,
+    )
+    reg.register(task)
+    sleeps: list[float] = []
+    monkeypatch.setattr(wb_cli.time, "sleep", lambda s: sleeps.append(s))
+    result = sched.run("t1")
+    assert task.status == "COMPLETED"
+    assert len(task.rounds) == 3
+    assert all(r["ok"] is True for r in task.rounds)
+    # sleep happens between runs, never after the last one
+    assert sleeps == [1.5, 1.5]
+    # the single-step plan runs once per round
+    assert len(runner.calls) == 3
+    assert isinstance(result, LoopResult)
+
+
+def test_scheduler_recurring_respects_max_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = FakeRunner([], {"alpha": _run_result_ok("alpha")})
+    mem = MemoryService(state_dir=tmp_path / "m")
+    store = TaskStore(state_dir=tmp_path / "s")
+    reg = TaskRegistry()
+    sched = TaskScheduler(store=store, registry=reg, runner=runner, memory=mem)
+    task = Task(
+        task_id="t1",
+        plan=[{"skill": "alpha"}],
+        mode="recurring",
+        max_runs=5,
+        interval=2.0,
+    )
+    reg.register(task)
+    monkeypatch.setattr(wb_cli.time, "sleep", lambda s: None)
+    sched.run("t1")
+    assert task.status == "COMPLETED"
+    assert len(task.rounds) == 5
+    assert len(runner.calls) == 5
+
+
+def test_scheduler_oneshot_runs_once_even_with_recurring_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = FakeRunner([], {"alpha": _run_result_ok("alpha")})
+    mem = MemoryService(state_dir=tmp_path / "m")
+    store = TaskStore(state_dir=tmp_path / "s")
+    reg = TaskRegistry()
+    sched = TaskScheduler(store=store, registry=reg, runner=runner, memory=mem)
+    task = Task(
+        task_id="t1",
+        plan=[{"skill": "alpha"}],
+        mode="oneshot",
+        max_runs=5,
+        interval=1.0,
+    )
+    reg.register(task)
+    sleeps: list[float] = []
+    monkeypatch.setattr(wb_cli.time, "sleep", lambda s: sleeps.append(s))
+    sched.run("t1")
+    assert task.status == "COMPLETED"
+    assert len(task.rounds) == 1
+    assert sleeps == []
+    assert len(runner.calls) == 1
+
+
+def test_scheduler_recurring_failure_marks_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = FakeRunner([], {"alpha": _run_result_fail("alpha", "boom")})
+    mem = MemoryService(state_dir=tmp_path / "m")
+    store = TaskStore(state_dir=tmp_path / "s")
+    reg = TaskRegistry()
+    sched = TaskScheduler(store=store, registry=reg, runner=runner, memory=mem)
+    task = Task(
+        task_id="t1",
+        plan=[{"skill": "alpha"}],
+        mode="recurring",
+        max_runs=3,
+        interval=0.5,
+    )
+    reg.register(task)
+    monkeypatch.setattr(wb_cli.time, "sleep", lambda s: None)
+    sched.run("t1")
+    assert task.status == "FAILED"
+    assert len(task.rounds) == 3
+    assert all(r["ok"] is False for r in task.rounds)
 
 
 # ---------------------------------------------------------------------------

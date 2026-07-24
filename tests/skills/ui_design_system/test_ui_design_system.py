@@ -14,7 +14,7 @@ TOKENS_BASE = SKILL_DIR / "tokens" / "tokens.base.json"
 def run_script(name: str, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(SCRIPTS / name), *args],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True, text=True, timeout=30, check=False,
     )
 
 

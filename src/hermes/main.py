@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
-from hermes.config import get_settings
+from hermes.config import Settings, get_settings
 from hermes.logging import setup_logging
 from hermes.profile import get_profile_markdown, load_profile
-from hermes.skills import discover_skills, list_knowledge_docs, skills_dir, knowledge_dir
+from hermes.skills import discover_skills, knowledge_dir, list_knowledge_docs, skills_dir
 from hermes.workbench.cli import add_workbench_subparser
 
 
@@ -110,6 +111,61 @@ def cmd_profile_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_profile_init(args: argparse.Namespace) -> int:
+    """Initialize profile.json from example or defaults."""
+    import json as _json
+
+    settings = get_settings()
+    profile_path = settings.hermes_profile_path
+
+    if profile_path.exists() and not args.force:
+        print(f"Profile already exists at {profile_path}. Use --force to overwrite.")
+        return 1
+
+    example_path = profile_path.parent / "profile.example.json"
+    if example_path.exists():
+        profile = _json.loads(example_path.read_text(encoding="utf-8"))
+        print(f"Initialized profile from {example_path}")
+    else:
+        from hermes.profile import _default_profile
+        profile = _default_profile()
+        print("Initialized profile from defaults")
+
+    profile_path.parent.mkdir(parents=True, exist_ok=True)
+    profile_path.write_text(_json.dumps(profile, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Written to {profile_path}")
+    return 0
+
+
+def _check_skill_dependencies(settings: Settings) -> list[str]:
+    """Check all skills' required bins/env and return warning strings."""
+    import shutil as _shutil
+
+    warnings: list[str] = []
+    try:
+        from hermes.workbench.skill_runner import SkillRunner
+
+        runner = SkillRunner(base_dir=settings.hermes_project_root / "skills")
+        for spec in runner.discover():
+            missing_bins = [
+                b for b in spec.requires_bins if _shutil.which(b) is None
+            ]
+            if missing_bins:
+                warnings.append(
+                    f"Skill '{spec.name}' missing binaries: {', '.join(missing_bins)}"
+                )
+            missing_env = [
+                e for e in spec.requires_env if not os.environ.get(e)
+            ]
+            if missing_env:
+                warnings.append(
+                    f"Skill '{spec.name}' missing env vars: {', '.join(missing_env)}"
+                )
+    except Exception:  # noqa: BLE001, S110
+        pass  # Soft degradation: skills dir may not exist
+    return warnings
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     """Run health checks on the Hermes environment (degraded-friendly)."""
     settings = get_settings()
@@ -130,6 +186,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
     skills_count = len(discover_skills())
     docs_count = len(list_knowledge_docs())
+
+    # Check skill dependencies
+    warnings.extend(_check_skill_dependencies(settings))
 
     print("=== Hermes Doctor ===")
     print(f"Python:          {sys.version.split()[0]}")
@@ -193,11 +252,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("doctor", help="Run environment health checks").set_defaults(func=cmd_doctor)
 
-    p_profile = sub.add_parser("profile", help="View user profile")
+    p_profile = sub.add_parser("profile", help="Manage user profile")
     p_profile_sub = p_profile.add_subparsers(dest="profile_cmd", required=True)
     p_profile_show = p_profile_sub.add_parser("show", help="Show user profile")
     p_profile_show.add_argument("--json", action="store_true", help="Output raw JSON")
     p_profile_show.set_defaults(func=cmd_profile_show)
+    p_profile_init = p_profile_sub.add_parser("init", help="Initialize profile.json from example or defaults")
+    p_profile_init.add_argument("--force", action="store_true", help="Overwrite existing profile")
+    p_profile_init.set_defaults(func=cmd_profile_init)
 
     add_workbench_subparser(sub)
 
@@ -215,8 +277,8 @@ def main(argv: list[str] | None = None) -> int:
     func = getattr(args, "func", cmd_start)
     try:
         return func(args)
-    except Exception as exc:  # degraded-friendly: never crash silently
-        logging.getLogger("hermes").error("Command failed: %s", exc, exc_info=True)
+    except Exception:  # degraded-friendly: never crash silently
+        logging.getLogger("hermes").exception("Command failed")
         return 2
 
 

@@ -8,6 +8,7 @@ output) and an L2 episode summarizing the whole plan.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -56,9 +57,15 @@ class LoopResult:
 class AgentLoop:
     """Run a plan of LoopSteps sequentially, recording memory along the way."""
 
-    def __init__(self, runner: SkillRunner, memory: MemoryService) -> None:
+    def __init__(
+        self,
+        runner: SkillRunner,
+        memory: MemoryService,
+        default_timeout: float | None = None,
+    ) -> None:
         self.runner = runner
         self.memory = memory
+        self.default_timeout = default_timeout
 
     def execute(
         self, plan: list[LoopStep], record_episode: bool = True
@@ -70,8 +77,9 @@ class AgentLoop:
         aborted = False
 
         for step in plan:
+            timeout = step.timeout if step.timeout is not None else self.default_timeout
             run_result: RunResult = self.runner.run(
-                step.skill, args=step.args, timeout=step.timeout
+                step.skill, args=step.args, timeout=timeout
             )
             sr = LoopStepResult(
                 skill=step.skill,
@@ -81,11 +89,10 @@ class AgentLoop:
                 stdout_preview=_preview(run_result.stdout),
             )
             step_results.append(sr)
-            if not run_result.ok:
-                if step.abort_on_error:
-                    loop_error = run_result.error or f"step {step.skill} failed"
-                    aborted = True
-                    break
+            if not run_result.ok and step.abort_on_error:
+                loop_error = run_result.error or f"step {step.skill} failed"
+                aborted = True
+                break
         ended_at = time.time()
 
         all_ok = bool(step_results) and all(s.ok for s in step_results)
@@ -139,3 +146,100 @@ def _preview(text: str, max_len: int = 500) -> str:
     if len(text) <= max_len:
         return text
     return text[:max_len]
+
+
+class AsyncAgentLoop:
+    """Asynchronous variant of :class:`AgentLoop`.
+
+    Each step's synchronous ``SkillRunner.run()`` call is dispatched to a
+    worker thread via :func:`asyncio.to_thread` so that the event loop is not
+    blocked by the underlying subprocess. Steps still execute sequentially
+    (the next step only starts after the previous one completes) to preserve
+    the order semantics of the sync :class:`AgentLoop`.
+    """
+
+    def __init__(
+        self,
+        runner: SkillRunner,
+        memory: MemoryService,
+        default_timeout: float | None = None,
+    ) -> None:
+        self.runner = runner
+        self.memory = memory
+        self.default_timeout = default_timeout
+
+    async def execute_async(
+        self, plan: list[LoopStep], record_episode: bool = True
+    ) -> LoopResult:
+        """Execute *plan* sequentially, awaiting each step in a thread pool."""
+        started_at = time.time()
+        step_results: list[LoopStepResult] = []
+        loop_error: str | None = None
+        aborted = False
+
+        for step in plan:
+            timeout = step.timeout if step.timeout is not None else self.default_timeout
+            run_result: RunResult = await asyncio.to_thread(
+                self.runner.run,
+                step.skill,
+                args=step.args,
+                timeout=timeout,
+            )
+            sr = LoopStepResult(
+                skill=step.skill,
+                ok=run_result.ok,
+                error=run_result.error,
+                duration=run_result.duration,
+                stdout_preview=_preview(run_result.stdout),
+            )
+            step_results.append(sr)
+            if not run_result.ok and step.abort_on_error:
+                loop_error = run_result.error or f"step {step.skill} failed"
+                aborted = True
+                break
+        ended_at = time.time()
+
+        all_ok = bool(step_results) and all(s.ok for s in step_results)
+        result = LoopResult(
+            steps=step_results,
+            ok=all_ok and not aborted,
+            started_at=started_at,
+            ended_at=ended_at,
+            error=loop_error,
+        )
+
+        if record_episode:
+            self._record_memory(plan, result)
+
+        return result
+
+    # ------------------------------------------------------------------
+    def _record_memory(self, plan: list[LoopStep], result: LoopResult) -> None:
+        # L1 facts: per-skill last_output preview
+        for sr in result.steps:
+            self.memory.remember_fact(
+                f"skill:{sr.skill}:last_output", sr.stdout_preview
+            )
+        # L2 episode: whole plan summary
+        summary = (
+            f"loop executed {len(result.steps)} step(s); ok={result.ok}"
+        )
+        details: dict[str, Any] = {
+            "plan": [
+                {"skill": s.skill, "args": list(s.args), "abort_on_error": s.abort_on_error}
+                for s in plan
+            ],
+            "steps": [
+                {
+                    "skill": s.skill,
+                    "ok": s.ok,
+                    "error": s.error,
+                    "duration": s.duration,
+                }
+                for s in result.steps
+            ],
+            "ok": result.ok,
+            "duration": result.duration,
+            "error": result.error,
+        }
+        self.memory.record_episode(make_episode("loop", summary, details))

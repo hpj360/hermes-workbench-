@@ -521,8 +521,8 @@ def resolve_conflict(
     use_symlink = m.get("mode", "copy") == "symlink"
     synced: list[str] = []
     known_agents = set(m.get("agents", []))
-    for agent_name in agent_map:
-        target = agent_map[agent_name] / skill_name
+    for agent_name, agent_path in agent_map.items():
+        target = agent_path / skill_name
         if use_symlink:
             _create_symlink(central, target)
         else:

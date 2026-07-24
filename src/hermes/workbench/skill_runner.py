@@ -320,13 +320,36 @@ class SkillRunner:
             error=None if ok else f"exit {proc.returncode}",
         )
 
+    @staticmethod
+    def _find_shell() -> str | None:
+        """Find an available POSIX shell (sh, bash) or Windows fallback."""
+        for candidate in ("sh", "bash"):
+            path = shutil.which(candidate)
+            if path:
+                return path
+        if sys.platform == "win32":
+            # Try Git Bash common install paths
+            for p in (
+                r"C:\Program Files\Git\bin\sh.exe",
+                r"C:\Program Files\Git\usr\bin\sh.exe",
+            ):
+                if os.path.isfile(p):
+                    return p
+        return None
+
     def _build_command(self, spec: SkillSpec, args: list[str]) -> list[str]:
         if spec.entrypoint is None:
             return list(args)
         if spec.runtime == "python":
             return [sys.executable, spec.entrypoint, *args]
         if spec.runtime == "shell":
-            return ["sh", spec.entrypoint, *args]
+            shell = self._find_shell()
+            if shell is None:
+                raise OSError(
+                    "No POSIX shell (sh/bash) found on PATH. "
+                    "Install Git Bash or WSL on Windows."
+                )
+            return [shell, spec.entrypoint, *args]
         if spec.runtime == "node":
             return ["node", spec.entrypoint, *args]
         return [spec.entrypoint, *args]

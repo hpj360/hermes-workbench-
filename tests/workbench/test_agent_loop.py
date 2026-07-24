@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from hermes.workbench.agent_loop import (
     AgentLoop,
+    AsyncAgentLoop,
     LoopResult,
     LoopStep,
     LoopStepResult,
 )
 from hermes.workbench.memory import MemoryService
 from hermes.workbench.skill_runner import RunResult, SkillRunner
-
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -170,3 +171,51 @@ def test_loop_step_defaults(tmp_path: Path) -> None:
     assert step.args == []
     assert step.timeout is None
     assert step.abort_on_error is False
+
+
+# ---------------------------------------------------------------------------
+# AsyncAgentLoop tests
+# ---------------------------------------------------------------------------
+
+
+def test_async_basic_execution(tmp_path: Path) -> None:
+    runner = FakeRunner({"alpha": _ok("alpha", "hello"), "beta": _ok("beta", "world")})
+    loop = AsyncAgentLoop(runner=runner, memory=_make_memory(tmp_path))
+    result = asyncio.run(loop.execute_async([LoopStep(skill="alpha"), LoopStep(skill="beta")]))
+    assert isinstance(result, LoopResult)
+    assert result.ok is True
+    assert [s.skill for s in result.steps] == ["alpha", "beta"]
+    assert [c[0] for c in runner.calls] == ["alpha", "beta"]
+    assert result.steps[0].stdout_preview == "hello"
+    assert result.steps[1].stdout_preview == "world"
+
+
+def test_async_abort_on_error(tmp_path: Path) -> None:
+    runner = FakeRunner({"alpha": _fail("alpha", "boom"), "beta": _ok("beta")})
+    loop = AsyncAgentLoop(runner=runner, memory=_make_memory(tmp_path))
+    result = asyncio.run(
+        loop.execute_async(
+            [LoopStep(skill="alpha", abort_on_error=True), LoopStep(skill="beta")]
+        )
+    )
+    assert result.ok is False
+    assert len(result.steps) == 1
+    assert result.error == "boom"
+    # beta should never have been called because alpha aborted the loop
+    assert [c[0] for c in runner.calls] == ["alpha"]
+
+
+def test_async_memory_recording(tmp_path: Path) -> None:
+    mem = _make_memory(tmp_path)
+    runner = FakeRunner({"alpha": _ok("alpha", "stdout-text")})
+    loop = AsyncAgentLoop(runner=runner, memory=mem)
+    asyncio.run(loop.execute_async([LoopStep(skill="alpha")]))
+
+    fact = mem.get_fact("skill:alpha:last_output")
+    assert fact is not None
+    assert fact["value"] == "stdout-text"
+
+    episodes = mem.list_episodes(kind="loop")
+    assert len(episodes) == 1
+    assert "loop executed 1 step" in episodes[0].summary
+    assert episodes[0].details["ok"] is True

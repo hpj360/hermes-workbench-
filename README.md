@@ -65,14 +65,26 @@ Hermes 自己的变量优先生效，通用 API Key（如 `OPENAI_API_KEY`、`SL
 
 ```bash
 hermes start              # 启动 Hermes（默认命令）
-hermes doctor             # 环境健康检查
+hermes doctor             # 环境健康检查（含 skill 依赖预检）
 hermes config show        # 查看当前生效配置（密钥脱敏）
+hermes profile init       # 从模板初始化 profile.json
+hermes profile show       # 查看用户画像
 hermes skills list        # 列出所有已安装 skills
 hermes knowledge list     # 列出所有知识文档
+hermes workbench serve    # 启动 Dashboard HTTP API（默认 :8000）
 hermes --help             # 查看帮助
 hermes --log-level DEBUG  # 指定日志级别
 hermes --log-file logs/hermes.log  # 同时输出到文件
 ```
+
+## Docker 部署
+
+```bash
+docker build -t hermes-workbench .
+docker run -p 8000:8000 -e HERMES_API_TOKEN=your-secret hermes-workbench
+```
+
+Dashboard API 默认监听 8000 端口，`/health` 端点免认证。设置 `HERMES_API_TOKEN` 后，其余端点需 `Authorization: Bearer <token>` 认证。
 
 ## 快速开始
 

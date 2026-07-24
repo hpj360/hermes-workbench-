@@ -53,7 +53,7 @@ class TestSync:
             [sys.executable, str(SCRIPTS / "sync.py"),
              "--input", str(EXAMPLES / "tokens.dtcg.json"),
              "--output-dir", str(tmp_path)],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=30, check=False,
         )
         assert result.returncode == 0, result.stderr
         # 8 个端产物都应该生成
@@ -69,7 +69,7 @@ class TestSync:
              "--input", str(EXAMPLES / "tokens.dtcg.json"),
              "--output-dir", str(tmp_path),
              "--platforms", "css"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=30, check=False,
         )
         assert result.returncode == 0
         assert (tmp_path / "tokens.css").exists()
@@ -82,7 +82,7 @@ class TestSync:
              "--input", str(EXAMPLES / "tokens.dtcg.json"),
              "--output-dir", str(tmp_path),
              "--platforms", "css"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=30, check=False,
         )
         content = (tmp_path / "tokens.css").read_text()
         assert ":root {" in content
@@ -95,7 +95,7 @@ class TestSync:
              "--input", str(EXAMPLES / "tokens.dtcg.json"),
              "--output-dir", str(tmp_path),
              "--platforms", "flutter"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=30, check=False,
         )
         content = (tmp_path / "tokens.dart").read_text()
         assert "class AppTokens" in content

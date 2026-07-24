@@ -12,15 +12,19 @@ import json
 import sys
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from hermes.config import get_settings
 from hermes.skills import skills_dir as _hermes_skills_dir
 from hermes.workbench.agent_loop import AgentLoop, LoopStep
 from hermes.workbench.memory import MemoryService
+from hermes.workbench.projects import ProjectRegistry
 from hermes.workbench.skill_runner import SkillRunner
-
+from hermes.workbench.sync import AssetSync
+from hermes.workbench.triggers import TriggerStore
+from hermes.workbench.workflow import WorkflowRunner, WorkflowStore
 
 # ---------------------------------------------------------------------------
 # Task runtime (minimal; the full scheduler lands in P2)
@@ -135,12 +139,8 @@ class TaskScheduler:
         self.runner = runner
         self.memory = memory
 
-    def run(self, task_id: str) -> Any:
-        task = self.registry.get(task_id)
-        if task is None:
-            return None
-        loop = AgentLoop(runner=self.runner, memory=self.memory)
-        plan = [
+    def _build_plan(self, task: Task) -> list[LoopStep]:
+        return [
             LoopStep(
                 skill=step["skill"],
                 args=list(step.get("args", [])),
@@ -149,6 +149,15 @@ class TaskScheduler:
             )
             for step in task.plan
         ]
+
+    def run(self, task_id: str) -> Any:
+        task = self.registry.get(task_id)
+        if task is None:
+            return None
+        if task.mode == "recurring" and task.interval > 0:
+            return self.run_recurring(task)
+        loop = AgentLoop(runner=self.runner, memory=self.memory)
+        plan = self._build_plan(task)
         result = loop.execute(plan)
         task.rounds.append(
             {
@@ -161,6 +170,38 @@ class TaskScheduler:
         task.status = "COMPLETED" if result.ok else "FAILED"
         self.store.save(task)
         return result
+
+    def run_recurring(self, task: Task) -> Any:
+        """Run *task*'s plan ``max_runs`` times, sleeping ``interval`` s between runs.
+
+        Each run's outcome is appended to ``task.rounds``. The final status is
+        ``COMPLETED`` unless any run failed and ``task.mode`` is not
+        ``"best_effort"`` (in which case it is ``FAILED``).
+        """
+        runs = max(1, task.max_runs)
+        loop = AgentLoop(runner=self.runner, memory=self.memory)
+        plan = self._build_plan(task)
+        any_failed = False
+        last_result: Any = None
+        for i in range(runs):
+            result = loop.execute(plan)
+            task.rounds.append(
+                {
+                    "ok": result.ok,
+                    "steps": len(result.steps),
+                    "error": result.error,
+                    "at": time.time(),
+                }
+            )
+            if not result.ok:
+                any_failed = True
+            self.store.save(task)
+            last_result = result
+            if i < runs - 1 and task.interval > 0:
+                time.sleep(task.interval)
+        task.status = "FAILED" if any_failed and task.mode != "best_effort" else "COMPLETED"
+        self.store.save(task)
+        return last_result
 
     def cancel(self, task_id: str) -> bool:
         task = self.registry.get(task_id)
@@ -210,6 +251,35 @@ def _make_scheduler() -> TaskScheduler:
     return TaskScheduler(
         store=_make_store(),
         registry=_make_registry(),
+        runner=_make_runner(),
+        memory=_make_memory(),
+    )
+
+
+def _make_workflow_store() -> WorkflowStore:
+    """工作流存储工厂。"""
+    return WorkflowStore(state_dir=_state_dir())
+
+
+def _make_workflow_runner() -> WorkflowRunner:
+    """工作流执行引擎工厂。"""
+    return WorkflowRunner(runner=_make_runner(), state_dir=_state_dir())
+
+
+def _make_trigger_store() -> TriggerStore:
+    """触发器存储工厂。"""
+    return TriggerStore(state_dir=_state_dir())
+
+
+def _make_project_registry() -> ProjectRegistry:
+    """项目注册中心工厂。"""
+    return ProjectRegistry(state_dir=_state_dir())
+
+
+def _make_asset_sync() -> AssetSync:
+    """资产同步引擎工厂。"""
+    return AssetSync(
+        registry=_make_project_registry(),
         runner=_make_runner(),
         memory=_make_memory(),
     )
@@ -432,6 +502,12 @@ def cmd_workbench_serve(args: argparse.Namespace) -> int:
     except ImportError as exc:
         print(f"server not available: {exc}", file=sys.stderr)
         return 1
+    if not get_settings().hermes_api_token:
+        print(
+            "warning: HERMES_API_TOKEN is not set; the dashboard API is running "
+            "without authentication. Set HERMES_API_TOKEN to enable token auth.",
+            file=sys.stderr,
+        )
     run_server(args.host, args.port)
     return 0
 

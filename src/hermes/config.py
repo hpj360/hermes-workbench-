@@ -160,7 +160,11 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Hermes specific
     # -------------------------------------------------------------------------
+    hermes_api_token: str | None = Field(default=None, alias="HERMES_API_TOKEN")
     hermes_log_level: str = Field(default="INFO", alias="HERMES_LOG_LEVEL")
+    hermes_skill_default_timeout: float = Field(
+        default=300.0, alias="HERMES_SKILL_DEFAULT_TIMEOUT"
+    )
     hermes_main_repo_path: Path = Field(
         default=Path("/workspace/OpenClaw/openclaw-main"),
         alias="HERMES_MAIN_REPO_PATH",

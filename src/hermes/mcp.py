@@ -85,7 +85,7 @@ class GitHubMCPClient:
             # 当前仅 GitHub 单源，audit_loop 检查 _sources 字段数，单源产生 warning。
             # 未来扩展多 MCP 时，同一字段从两个独立 API 取数即可达成双源验证。
             return {"success": True, "pr": data, "_sources": ["github-api"]}
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self._record("get_pr", {"pr_number": pr_number}, False, str(e))
             logger.warning("GitHub MCP get_pr failed (soft degradation): %s", e)
             return {"success": False, "error": str(e)}
@@ -99,7 +99,7 @@ class GitHubMCPClient:
                 data = json.loads(resp.read())
             self._record("get_issue", {"issue_number": issue_number}, True)
             return {"success": True, "issue": data, "_sources": ["github-api"]}
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self._record("get_issue", {"issue_number": issue_number}, False, str(e))
             logger.warning("GitHub MCP get_issue failed (soft degradation): %s", e)
             return {"success": False, "error": str(e)}
@@ -113,7 +113,7 @@ class GitHubMCPClient:
                 data = json.loads(resp.read())
             self._record("list_prs", {"state": state}, True)
             return {"success": True, "prs": data, "_sources": ["github-api"]}
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self._record("list_prs", {"state": state}, False, str(e))
             logger.warning("GitHub MCP list_prs failed (soft degradation): %s", e)
             return {"success": False, "error": str(e)}
@@ -140,7 +140,7 @@ class GitHubMCPClient:
                         "skipped": True,
                         "message": "Idempotent skip: identical comment already exists",
                     }
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass  # Soft degradation on idempotency check failure
 
         # Post new comment
@@ -154,7 +154,7 @@ class GitHubMCPClient:
                 data = json.loads(resp.read())
             self._record("post_pr_comment", {"pr_number": pr_number}, True)
             return {"success": True, "comment": data, "skipped": False}
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self._record("post_pr_comment", {"pr_number": pr_number}, False, str(e))
             logger.warning("GitHub MCP post_pr_comment failed (soft degradation): %s", e)
             return {"success": False, "error": str(e)}
@@ -183,7 +183,7 @@ class GitHubMCPClient:
                     "skipped": True,
                     "message": "Idempotent skip: PR already exists for this head:base",
                 }
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass  # Soft degradation
 
         url = f"https://api.github.com/repos/{self.repo}/pulls"
@@ -198,7 +198,7 @@ class GitHubMCPClient:
                 data = json.loads(resp.read())
             self._record("create_pr", {"head": head, "base": base}, True)
             return {"success": True, "pr": data, "skipped": False}
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self._record("create_pr", {"head": head, "base": base}, False, str(e))
             logger.warning("GitHub MCP create_pr failed (soft degradation): %s", e)
             return {"success": False, "error": str(e)}

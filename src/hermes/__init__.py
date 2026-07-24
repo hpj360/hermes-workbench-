@@ -7,10 +7,10 @@ from hermes.skills import SkillInfo, discover_skills, get_skill_path, list_knowl
 
 __all__ = [
     "Settings",
-    "get_settings",
     "SkillInfo",
+    "__version__",
     "discover_skills",
+    "get_settings",
     "get_skill_path",
     "list_knowledge_docs",
-    "__version__",
 ]

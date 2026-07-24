@@ -18,7 +18,6 @@ import pytest
 
 from hermes import profile as P
 
-
 # ── _has_meaningful_principles ───────────────────────────────────────
 
 

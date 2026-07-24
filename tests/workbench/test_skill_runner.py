@@ -18,7 +18,6 @@ from hermes.workbench.skill_runner import (
     _parse_front_matter,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
@@ -236,6 +235,8 @@ def test_run_python_skill_executes(tmp_path: Path) -> None:
 
 
 def test_run_shell_skill_executes(tmp_path: Path) -> None:
+    if SkillRunner._find_shell() is None:
+        pytest.skip("No POSIX shell (sh/bash) available on this platform")
     base = tmp_path / "skills"
     _write_skill_md(base / "sh-skill", PROMPT_SKILL_MD)
     (base / "sh-skill" / "run.sh").write_text(
@@ -262,6 +263,8 @@ def test_run_node_skill_executes(tmp_path: Path) -> None:
 
 
 def test_run_timeout_returns_timeout_error(tmp_path: Path) -> None:
+    if SkillRunner._find_shell() is None:
+        pytest.skip("No POSIX shell (sh/bash) available on this platform")
     base = tmp_path / "skills"
     _write_skill_md(base / "slow", PROMPT_SKILL_MD)
     (base / "slow" / "run.sh").write_text(

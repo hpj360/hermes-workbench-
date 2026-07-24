@@ -15,10 +15,11 @@ from __future__ import annotations
 import json
 import os
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
@@ -331,7 +332,7 @@ class GitHubSource:
         try:
             raw = self._fetcher(self.repo, path)
             listing = _parse_github_listing(raw)
-        except Exception:
+        except Exception:  # noqa: BLE001
             return []
         if cache_file:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -553,14 +554,14 @@ def _extract_description(content: str) -> str:
 
 
 __all__ = [
-    "SourceKind",
+    "DEFAULT_GITHUB_REPOS",
+    "AgentEntry",
+    "GitHubSource",
+    "KnowledgeEntry",
+    "LocalSource",
+    "Registry",
     "RegistrySource",
     "SkillEntry",
-    "AgentEntry",
-    "KnowledgeEntry",
+    "SourceKind",
     "UserProfile",
-    "DEFAULT_GITHUB_REPOS",
-    "LocalSource",
-    "GitHubSource",
-    "Registry",
 ]

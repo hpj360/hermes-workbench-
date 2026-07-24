@@ -21,7 +21,6 @@ from hermes.workbench.github_sync import (
     _extract_plan_from_body,
 )
 
-
 # ---------------------------------------------------------------------------
 # _extract_plan_from_body
 # ---------------------------------------------------------------------------
@@ -76,9 +75,9 @@ def _make_client(
         resp = responses.get(lookup_key)
         if resp is None:
             # Fallback: match by suffix.
-            for k in responses:
+            for k, val in responses.items():
                 if path_only.endswith(k.split(":", 1)[1]) and k.startswith(req.method):
-                    resp = responses[k]
+                    resp = val
                     break
         if isinstance(resp, Exception):
             raise resp

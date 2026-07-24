@@ -1,0 +1,3332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes Workbench</title>
+<style>
+  :root {
+    --bg: #080809;
+    --bg-elev: #0d0d10;
+    --card: rgba(255,255,255,0.03);
+    --card-hover: rgba(255,255,255,0.05);
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e0e0e0;
+    --text-2: #8b8b8b;
+    --text-3: #5a5a5a;
+    --accent: #6366f1;
+    --accent-2: #8b5cf6;
+    --grad: linear-gradient(135deg, #6366f1, #8b5cf6);
+    --green: #10b981;
+    --blue: #3b82f6;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --gray: #6b7280;
+    --r-card: 12px;
+    --r-btn: 8px;
+    --r-badge: 999px;
+    --glow: 0 0 20px rgba(99,102,241,0.15);
+    --mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+    --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(99,102,241,0.06), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(139,92,246,0.05), transparent 60%);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ===== Layout ===== */
+  .app {
+    display: grid;
+    grid-template-rows: 48px 1fr 32px;
+    height: 100vh;
+    position: relative; z-index: 1;
+  }
+
+  /* ===== Top Bar ===== */
+  .topbar {
+    display: flex; align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(13,13,16,0.85);
+    backdrop-filter: blur(8px);
+    gap: 16px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 600; font-size: 14px;
+    letter-spacing: 0.2px;
+  }
+  .brand .logo {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    background: var(--grad);
+    border-radius: 6px;
+    box-shadow: var(--glow);
+    color: #fff; font-size: 13px;
+  }
+  .topbar .spacer { flex: 1; }
+  .conn {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-2);
+  }
+  .conn .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px rgba(16,185,129,0.6);
+  }
+  .conn.demo .dot { background: var(--orange); box-shadow: 0 0 8px rgba(245,158,11,0.6); }
+  .kbd {
+    display: flex; align-items: center; gap: 4px;
+    padding: 4px 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    font-size: 11px; color: var(--text-2);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .kbd:hover { border-color: var(--border-strong); color: var(--text); }
+  .kbd kbd {
+    font-family: var(--mono);
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px; border-radius: 4px;
+    font-size: 10px;
+  }
+  .icon-btn {
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--r-btn);
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all .15s;
+    font-size: 14px;
+  }
+  .icon-btn:hover { background: var(--card); border-color: var(--border); color: var(--text); }
+
+  /* ===== Main area ===== */
+  .main {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 0;
+  }
+
+  /* ===== Sidebar ===== */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    background: rgba(13,13,16,0.5);
+    padding: 12px 8px;
+    overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .nav-section {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-3);
+    padding: 12px 10px 6px;
+    font-weight: 600;
+  }
+  .nav-section + .nav-section { border-top: 1px solid var(--border); margin-top: 8px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--r-btn);
+    color: var(--text-2);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all .15s;
+    user-select: none;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--card); color: var(--text); }
+  .nav-item.active {
+    background: rgba(99,102,241,0.12);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px rgba(99,102,241,0.25);
+  }
+  .nav-item.active::before {
+    content: ''; position: absolute; left: -8px; top: 8px; bottom: 8px;
+    width: 2px; background: var(--grad); border-radius: 2px;
+  }
+  .nav-item .ico { width: 16px; text-align: center; font-size: 14px; }
+  .nav-item.disabled { opacity: 0.4; cursor: not-allowed; }
+  .nav-item.disabled:hover { background: transparent; color: var(--text-2); }
+  .nav-item .tag {
+    margin-left: auto;
+    font-size: 9px; padding: 1px 5px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r-badge); color: var(--text-3);
+  }
+
+  /* ===== Content ===== */
+  .content {
+    overflow-y: auto;
+    padding: 24px 28px;
+    min-width: 0;
+  }
+  .page-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 16px;
+  }
+  .page-title {
+    font-size: 20px; font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+  .page-sub { color: var(--text-2); font-size: 13px; margin-top: 2px; }
+  .page-actions { display: flex; gap: 8px; align-items: center; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .btn:hover { background: var(--card-hover); border-color: var(--border-strong); }
+  .btn.primary {
+    background: var(--grad);
+    border: none;
+    color: #fff;
+    box-shadow: var(--glow);
+  }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.ghost { background: transparent; }
+  .btn.danger { color: var(--red); border-color: rgba(239,68,68,0.3); }
+  .btn.danger:hover { background: rgba(239,68,68,0.1); }
+  .btn.sm { padding: 4px 8px; font-size: 12px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ===== Cards / panels ===== */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    padding: 16px;
+    transition: border-color .15s, background .15s;
+  }
+  .card-title {
+    font-size: 12px; font-weight: 600;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title .actions { margin-left: auto; }
+
+  .grid { display: grid; gap: 16px; }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .grid-2 { grid-template-columns: 2fr 1fr; }
+  .grid-2-eq { grid-template-columns: 1fr 1fr; }
+
+  /* ===== Stat card ===== */
+  .stat {
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all .2s;
+  }
+  .stat:hover {
+    border-color: var(--border-strong);
+    background: var(--card-hover);
+    transform: translateY(-1px);
+  }
+  .stat .stat-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .stat .stat-ico {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    background: rgba(99,102,241,0.1);
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  .stat .stat-val {
+    font-size: 26px; font-weight: 700;
+    letter-spacing: -0.5px;
+    font-family: var(--mono);
+  }
+  .stat .stat-label {
+    color: var(--text-2); font-size: 12px;
+    margin-top: 2px;
+  }
+  .stat .stat-trend {
+    font-size: 11px; color: var(--green);
+    margin-top: 6px;
+  }
+
+  /* ===== Badge ===== */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--r-badge);
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text-2);
+    white-space: nowrap;
+  }
+  .badge.prompt { color: #a78bfa; border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.08); }
+  .badge.python { color: #60a5fa; border-color: rgba(96,165,250,0.3); background: rgba(96,165,250,0.08); }
+  .badge.shell { color: #34d399; border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.08); }
+  .badge.node { color: #fbbf24; border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.08); }
+  .badge.green { color: var(--green); border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+  .badge.blue { color: var(--blue); border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.08); }
+  .badge.red { color: var(--red); border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); }
+  .badge.orange { color: var(--orange); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
+  .badge.gray { color: var(--text-2); border-color: var(--border); background: var(--card); }
+  .badge.dot::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+  }
+
+  /* ===== Inputs ===== */
+  .input, .textarea, .select {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    padding: 8px 10px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color .15s;
+  }
+  .input:focus, .textarea:focus, .select:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  }
+  .textarea { resize: vertical; min-height: 70px; font-family: var(--mono); }
+  .input::placeholder, .textarea::placeholder { color: var(--text-3); }
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block; font-size: 11px; color: var(--text-2);
+    margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.6px;
+  }
+
+  /* ===== Tabs ===== */
+  .tabs {
+    display: flex; gap: 2px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .tab {
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--text-2);
+    cursor: pointer;
+    border: none; background: transparent;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .tab .count {
+    margin-left: 6px; font-size: 11px;
+    color: var(--text-3);
+  }
+
+  /* ===== Filter chips ===== */
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    padding: 5px 11px;
+    border-radius: var(--r-badge);
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .chip:hover { border-color: var(--border-strong); color: var(--text); }
+  .chip.active {
+    background: rgba(99,102,241,0.12);
+    border-color: rgba(99,102,241,0.4);
+    color: var(--text);
+  }
+
+  /* ===== Skill cards ===== */
+  .skill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .skill-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    padding: 14px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .skill-card:hover { border-color: rgba(99,102,241,0.4); background: var(--card-hover); }
+  .skill-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .skill-card .row1 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .skill-card .name { font-weight: 600; font-size: 14px; font-family: var(--mono); }
+  .skill-card .desc { color: var(--text-2); font-size: 12px; line-height: 1.45; }
+  .skill-card .meta { display: flex; gap: 6px; margin-top: 10px; font-size: 11px; color: var(--text-3); }
+
+  .detail-panel {
+    margin-top: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    overflow: hidden;
+  }
+  .detail-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-head .title { font-weight: 600; font-family: var(--mono); }
+  .detail-body { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 12px; }
+  .kv .k { color: var(--text-2); }
+  .kv .v { color: var(--text); font-family: var(--mono); word-break: break-all; }
+  .run-panel { border-top: 1px solid var(--border); padding: 16px; background: rgba(0,0,0,0.2); }
+  .run-output {
+    margin-top: 12px;
+    background: #050507;
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    padding: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #a3e635;
+    min-height: 60px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .run-output.empty { color: var(--text-3); }
+
+  /* ===== Memory list ===== */
+  .fact-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    background: var(--card);
+    margin-bottom: 8px;
+    transition: all .15s;
+  }
+  .fact-row:hover { border-color: var(--border-strong); }
+  .fact-row .key { font-family: var(--mono); color: var(--accent-2); font-size: 13px; min-width: 0; flex-shrink: 0; }
+  .fact-row .sep { color: var(--text-3); }
+  .fact-row .val { font-family: var(--mono); color: var(--text); font-size: 13px; flex: 1; word-break: break-all; }
+  .fact-row .del { opacity: 0; transition: opacity .15s; }
+  .fact-row:hover .del { opacity: 1; }
+
+  .episode {
+    display: flex; gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    background: var(--card);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .episode:hover { border-color: var(--border-strong); background: var(--card-hover); }
+  .episode .ico {
+    width: 30px; height: 30px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: rgba(99,102,241,0.1);
+    border-radius: 8px; font-size: 14px;
+  }
+  .episode .body { flex: 1; min-width: 0; }
+  .episode .top { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .episode .summary { font-size: 13px; color: var(--text); }
+  .episode .time { font-size: 11px; color: var(--text-3); font-family: var(--mono); }
+  .episode .expand { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-2); font-family: var(--mono); white-space: pre-wrap; }
+  .episode.open .expand { display: block; }
+
+  /* ===== Tasks ===== */
+  .task-card {
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    background: var(--card);
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .task-card:hover { border-color: var(--border-strong); }
+  .task-card.selected { border-color: var(--accent); }
+  .task-card .top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .task-card .id { font-family: var(--mono); font-weight: 600; font-size: 13px; }
+  .task-card .time { margin-left: auto; font-size: 11px; color: var(--text-3); font-family: var(--mono); }
+  .step-chain { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .step-pill {
+    padding: 3px 9px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-badge);
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-2);
+  }
+  .step-arrow { color: var(--text-3); font-size: 11px; }
+
+  .round {
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: rgba(0,0,0,0.2);
+  }
+  .round .rh { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+  .round .rs { font-family: var(--mono); color: var(--text-2); font-size: 12px; }
+
+  .step-builder {
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--r-btn);
+    padding: 10px;
+    margin-bottom: 8px;
+    display: grid; grid-template-columns: 180px 1fr auto; gap: 8px; align-items: center;
+  }
+  .step-builder .rm { cursor: pointer; color: var(--text-3); }
+  .step-builder .rm:hover { color: var(--red); }
+
+  /* ===== Registry ===== */
+  .source-card {
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    background: var(--card);
+    padding: 14px;
+    display: flex; align-items: center; gap: 14px;
+    transition: all .15s;
+  }
+  .source-card:hover { border-color: var(--border-strong); }
+  .source-card .sico {
+    width: 38px; height: 38px;
+    display: grid; place-items: center;
+    background: rgba(99,102,241,0.1);
+    border-radius: 10px; font-size: 17px;
+  }
+  .source-card .sbody { flex: 1; }
+  .source-card .sname { font-weight: 600; font-size: 14px; }
+  .source-card .smeta { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+
+  table.matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.matrix th, table.matrix td {
+    padding: 9px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  table.matrix th {
+    font-weight: 600; color: var(--text-2);
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;
+  }
+  table.matrix td.skill-name { font-family: var(--mono); }
+  table.matrix td.check { text-align: center; font-size: 15px; }
+  table.matrix .yes { color: var(--green); }
+  table.matrix .no { color: var(--text-3); }
+  table.matrix tr:hover { background: var(--card); }
+
+  .agent-row, .doc-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    background: var(--card);
+    margin-bottom: 8px;
+  }
+  .agent-row:hover, .doc-row:hover { border-color: var(--border-strong); }
+  .agent-row .ico, .doc-row .ico {
+    width: 28px; height: 28px; display: grid; place-items: center;
+    background: rgba(99,102,241,0.1); border-radius: 7px; font-size: 13px;
+  }
+  .agent-row .nm, .doc-row .nm { font-weight: 500; font-family: var(--mono); font-size: 13px; }
+  .agent-row .src, .doc-row .src { margin-left: auto; font-size: 11px; color: var(--text-3); font-family: var(--mono); }
+
+  /* ===== Profile / JSON ===== */
+  .json-view {
+    background: #050507;
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .json-edit {
+    width: 100%; min-height: 380px;
+    background: #050507;
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--text);
+    resize: vertical;
+  }
+  .json-edit:focus { outline: none; border-color: var(--accent); }
+  .jk { color: #a78bfa; }
+  .js { color: #34d399; }
+  .jn { color: #fbbf24; }
+  .jb { color: #60a5fa; }
+  .jn-null { color: var(--text-3); }
+
+  .field-desc {
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    padding: 14px;
+    background: var(--card);
+  }
+  .field-desc .fd-row { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .field-desc .fd-row:last-child { border-bottom: none; }
+  .field-desc .fd-key { font-family: var(--mono); color: var(--accent-2); }
+  .field-desc .fd-desc { color: var(--text-2); margin-top: 2px; }
+
+  /* ===== Status bar ===== */
+  .statusbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 16px;
+    border-top: 1px solid var(--border);
+    background: rgba(13,13,16,0.85);
+    backdrop-filter: blur(8px);
+    font-size: 11px;
+    color: var(--text-2);
+    font-family: var(--mono);
+  }
+  .statusbar .sep { color: var(--text-3); }
+  .progress {
+    display: flex; align-items: center; gap: 8px;
+    margin-left: auto;
+  }
+  .progress .bar {
+    width: 90px; height: 6px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress .fill {
+    height: 100%;
+    background: var(--grad);
+    box-shadow: var(--glow);
+    border-radius: 3px;
+    transition: width .4s;
+  }
+
+  /* ===== Skeleton ===== */
+  .skeleton {
+    background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: var(--r-btn);
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .sk-line { height: 12px; margin-bottom: 8px; }
+  .sk-line.short { width: 50%; }
+  .sk-block { height: 80px; }
+
+  /* ===== Empty / Error ===== */
+  .empty, .error-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-2);
+  }
+  .empty .ico, .error-state .ico { font-size: 32px; margin-bottom: 10px; opacity: 0.5; }
+  .empty .msg { font-size: 13px; }
+  .error-state .msg { font-size: 13px; margin-bottom: 12px; color: var(--red); }
+
+  /* ===== Health panel ===== */
+  .health-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .health-row:last-child { border-bottom: none; }
+  .health-row .hk { color: var(--text-2); }
+  .health-row .hv { display: flex; align-items: center; gap: 6px; }
+  .health-row .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 6px rgba(16,185,129,0.5);
+  }
+  .layer-tag {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: var(--r-badge);
+    font-size: 10px;
+    font-family: var(--mono);
+    border: 1px solid var(--border);
+    margin-right: 4px;
+  }
+  .layer-tag.l1 { color: #34d399; border-color: rgba(52,211,153,0.3); }
+  .layer-tag.l2 { color: #60a5fa; border-color: rgba(96,165,250,0.3); }
+  .layer-tag.l3 { color: #a78bfa; border-color: rgba(167,139,250,0.3); }
+
+  /* ===== Activity feed ===== */
+  .feed-item {
+    display: flex; gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-item .ico {
+    width: 24px; height: 24px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: rgba(99,102,241,0.08);
+    border-radius: 6px; font-size: 12px;
+  }
+  .feed-item .body { flex: 1; min-width: 0; }
+  .feed-item .summary { color: var(--text); }
+  .feed-item .meta { font-size: 11px; color: var(--text-3); font-family: var(--mono); margin-top: 1px; }
+
+  /* ===== Modal ===== */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    animation: fade .15s;
+  }
+  .modal-overlay.open { display: flex; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-card);
+    width: 90%; max-width: 480px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), var(--glow);
+    animation: pop .2s;
+    overflow: hidden;
+  }
+  @keyframes pop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-head .title { font-weight: 600; font-size: 15px; }
+  .modal-body { padding: 18px; font-size: 13px; color: var(--text-2); line-height: 1.6; }
+  .modal-body .phase-tag {
+    display: inline-block; padding: 2px 8px; border-radius: var(--r-badge);
+    font-size: 11px; background: rgba(99,102,241,0.12); color: #a78bfa;
+    border: 1px solid rgba(99,102,241,0.3); margin-bottom: 10px;
+  }
+  .modal-foot {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+
+  /* ===== Command palette ===== */
+  .palette-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    display: none;
+    z-index: 110;
+    animation: fade .12s;
+  }
+  .palette-overlay.open { display: block; }
+  .palette {
+    position: absolute;
+    top: 15%; left: 50%;
+    transform: translateX(-50%);
+    width: 90%; max-width: 520px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-card);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), var(--glow);
+    overflow: hidden;
+    animation: pop .15s;
+  }
+  .palette-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+  }
+  .palette-input:focus { outline: none; }
+  .palette-list { max-height: 320px; overflow-y: auto; padding: 6px; }
+  .pal-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--r-btn);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .pal-item:hover, .pal-item.active { background: rgba(99,102,241,0.12); }
+  .pal-item .ico { width: 18px; text-align: center; }
+  .pal-item .desc { color: var(--text-3); font-size: 11px; margin-left: auto; }
+  .pal-empty { padding: 20px; text-align: center; color: var(--text-3); font-size: 13px; }
+
+  /* ===== Toast ===== */
+  .toast-stack {
+    position: fixed; bottom: 50px; right: 20px;
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 200;
+  }
+  .toast {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-btn);
+    font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    animation: slideIn .2s;
+    min-width: 220px;
+  }
+  @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error { border-left: 3px solid var(--red); }
+  .toast.info { border-left: 3px solid var(--blue); }
+  .toast .t-ico { font-size: 14px; }
+
+  /* ===== Page transitions ===== */
+  .page { animation: pageIn .25s; }
+  @keyframes pageIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ===== Toggle ===== */
+  .toggle {
+    position: relative;
+    width: 32px; height: 18px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background .15s;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 1px; left: 1px;
+    width: 14px; height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    transition: left .15s;
+  }
+  .toggle.on { background: var(--green); border-color: rgba(16,185,129,0.4); }
+  .toggle.on::after { left: 15px; }
+
+  /* ===== Workflow DAG ===== */
+  .wf-dag {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 18px;
+    background: rgba(0,0,0,0.25);
+    border-radius: var(--r-btn);
+    border: 1px dashed var(--border-strong);
+    overflow-x: auto;
+  }
+  .wf-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .wf-node {
+    padding: 10px 14px;
+    background: var(--card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-btn);
+    font-size: 12px;
+    min-width: 130px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: all .15s;
+  }
+  .wf-node:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .wf-node .nid { font-family: var(--mono); color: var(--text-3); font-size: 10px; margin-bottom: 3px; }
+  .wf-node .nsk { font-weight: 600; font-family: var(--mono); color: var(--text); }
+  .wf-node .nargs { color: var(--accent-2); font-size: 11px; margin-top: 5px; font-family: var(--mono); word-break: break-all; }
+  .wf-arrow {
+    color: var(--accent);
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .wf-layer-label {
+    font-size: 10px; color: var(--text-3);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 4px;
+    font-family: var(--mono);
+  }
+
+  /* ===== Step builder (extended for workflow) ===== */
+  .step-builder.wf {
+    grid-template-columns: 70px 1fr 1.2fr 1.2fr auto;
+    gap: 8px;
+  }
+
+  /* ===== Trigger / Project cards ===== */
+  .trigger-card, .project-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    background: var(--card);
+    margin-bottom: 8px;
+    transition: all .15s;
+  }
+  .trigger-card:hover, .project-card:hover { border-color: var(--border-strong); background: var(--card-hover); }
+  .trigger-card .tc-body, .project-card .pc-body { flex: 1; min-width: 0; }
+  .trigger-card .tc-wf, .project-card .pc-name { font-weight: 600; font-size: 13px; font-family: var(--mono); }
+  .trigger-card .tc-cfg, .project-card .pc-meta { font-size: 11px; color: var(--text-2); margin-top: 2px; font-family: var(--mono); word-break: break-all; }
+
+  .pc-status {
+    width: 9px; height: 9px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .pc-status.connected { background: var(--green); box-shadow: 0 0 8px rgba(16,185,129,0.5); }
+  .pc-status.disconnected { background: var(--text-3); }
+  .pc-status.error { background: var(--red); box-shadow: 0 0 8px rgba(239,68,68,0.5); }
+
+  .project-detail-row {
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  /* ===== Cross-project operations ===== */
+  .cross-ops { display: flex; flex-direction: column; gap: 10px; }
+  .op-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 24px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    background: rgba(0,0,0,0.2);
+  }
+  .op-row .op-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .op-row .op-arrow { color: var(--accent); font-size: 16px; text-align: center; }
+  .op-row.single {
+    grid-template-columns: 110px 1fr auto;
+  }
+
+  /* ===== Progress bar (summary) ===== */
+  .progress-bar {
+    width: 100%; height: 10px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .progress-bar .pb-fill {
+    height: 100%;
+    background: var(--grad);
+    box-shadow: var(--glow);
+    border-radius: 5px;
+    transition: width .4s;
+  }
+
+  /* ===== Execution step results ===== */
+  .exec-step {
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: rgba(0,0,0,0.2);
+  }
+  .exec-step .es-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .exec-step .es-name { font-family: var(--mono); font-weight: 600; }
+  .exec-step .es-dur { margin-left: auto; color: var(--text-3); font-family: var(--mono); font-size: 11px; }
+  .exec-step .es-out {
+    background: #050507;
+    border: 1px solid var(--border);
+    border-radius: var(--r-btn);
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: #a3e635;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  .exec-step .es-out.err { color: var(--red); }
+  .exec-step .es-out:empty { display: none; }
+
+  /* ===== Responsive ===== */
+  @media (max-width: 1024px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+    .detail-body { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 768px) {
+    .app { grid-template-columns: 1fr; }
+    .main { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed; left: 0; top: 48px; bottom: 32px;
+      width: 220px; z-index: 50;
+      transform: translateX(-100%);
+      transition: transform .2s;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .content { padding: 16px; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+    .grid-2-eq { grid-template-columns: 1fr; }
+    .step-builder { grid-template-columns: 1fr; }
+    .step-builder.wf { grid-template-columns: 1fr; }
+    .op-row { grid-template-columns: 1fr; }
+    .op-row.single { grid-template-columns: 1fr; }
+    .menu-toggle { display: grid !important; }
+  }
+  .menu-toggle { display: none; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ===== Top Bar ===== -->
+  <header class="topbar">
+    <button class="icon-btn menu-toggle" id="menuToggle" title="菜单">☰</button>
+    <div class="brand">
+      <div class="logo">◈</div>
+      <span>Hermes Workbench</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="conn demo" id="connBadge">
+      <span class="dot"></span>
+      <span id="connText">演示模式</span>
+    </div>
+    <button class="kbd" id="paletteTrigger" title="命令面板">
+      <kbd>⌘</kbd><kbd>K</kbd>
+    </button>
+    <button class="icon-btn" id="profileBtn" title="用户画像">⚙</button>
+  </header>
+
+  <!-- ===== Main ===== -->
+  <div class="main">
+    <aside class="sidebar" id="sidebar">
+      <div class="nav-section">Phase 1</div>
+      <div class="nav-item active" data-route="overview"><span class="ico">◈</span> 概览</div>
+      <div class="nav-item" data-route="skills"><span class="ico">▤</span> 技能</div>
+      <div class="nav-item" data-route="memory"><span class="ico">⚡</span> 记忆</div>
+      <div class="nav-item" data-route="tasks"><span class="ico">☑</span> 任务</div>
+      <div class="nav-item" data-route="registry"><span class="ico">🔗</span> 注册中心</div>
+
+      <div class="nav-section">Phase 2</div>
+      <div class="nav-item" data-route="orchestrate"><span class="ico">🔀</span> 编排自动化 <span class="tag">Phase 2</span></div>
+
+      <div class="nav-section">Phase 3</div>
+      <div class="nav-item" data-route="hub"><span class="ico">📡</span> 项目调度中心 <span class="tag">Phase 3</span></div>
+
+      <div class="nav-section" style="margin-top:auto;">账户</div>
+      <div class="nav-item" data-route="profile"><span class="ico">⚙</span> 用户画像</div>
+    </aside>
+
+    <main class="content" id="content"></main>
+  </div>
+
+  <!-- ===== Status Bar ===== -->
+  <footer class="statusbar">
+    <span>v0.2.0</span>
+    <span class="sep">·</span>
+    <span id="sbSkills">33 技能</span>
+    <span class="sep">·</span>
+    <span id="sbProviders">2 提供商</span>
+    <span class="sep">·</span>
+    <span id="sbTasks">5 任务</span>
+    <div class="progress">
+      <span>Phase 1</span>
+      <div class="bar"><div class="fill" id="sbProgress" style="width:60%"></div></div>
+      <span id="sbProgressText">60%</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ===== Modal root ===== -->
+<div class="modal-overlay" id="modalRoot">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="title" id="modalTitle"></span>
+      <button class="icon-btn" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<!-- ===== Command palette ===== -->
+<div class="palette-overlay" id="paletteRoot">
+  <div class="palette">
+    <input type="text" class="palette-input" id="paletteInput" placeholder="输入命令或导航..." />
+    <div class="palette-list" id="paletteList"></div>
+  </div>
+</div>
+
+<!-- ===== Toast stack ===== -->
+<div class="toast-stack" id="toastStack"></div>
+
+<script>
+/* ============================================================
+ * Hermes Workbench — single-file prototype
+ * ============================================================ */
+
+const DEMO_MODE = false; // auto-detect: tries real API, falls back to mock
+
+/* ---------- API Response Normalizer ---------- */
+function normalizeApiResponse(path, data) {
+  // Extract arrays from wrapper objects returned by real API
+  if (path === '/skills' && Array.isArray(data.skills)) return data.skills;
+  if (path === '/memory/facts' && Array.isArray(data.facts)) return data.facts;
+  if (path.startsWith('/memory/episodes') && Array.isArray(data.episodes)) {
+    return data.episodes.map(e => ({
+      ...e,
+      ts: e.created_at ? new Date(e.created_at * 1000).toISOString() : e.ts,
+      detail: e.details ? (typeof e.details === 'string' ? e.details : JSON.stringify(e.details, null, 2)) : e.detail
+    }));
+  }
+  if (path === '/tasks' && Array.isArray(data.tasks)) return data.tasks;
+  if (path === '/registry/sources' && Array.isArray(data.sources)) return data.sources;
+  if (path === '/registry/skills' && Array.isArray(data.skills)) return data.skills;
+  if (path === '/registry/agents' && Array.isArray(data.agents)) return data.agents;
+  if (path === '/registry/knowledge' && Array.isArray(data.knowledge)) return data.knowledge;
+  if (path === '/workflows' && Array.isArray(data.workflows)) return data.workflows;
+  if (path === '/triggers' && Array.isArray(data.triggers)) return data.triggers;
+  if (path === '/projects' && Array.isArray(data.projects)) return data.projects;
+  if (path.includes('/executions') && Array.isArray(data.executions)) return data.executions;
+  if (path === '/projects/summary' && data && typeof data === 'object') return data;
+  return data;
+}
+const MOCK = {
+  '/overview': {
+    stats: { skills: 33, memory: 12, tasks: 5, sources: 2 },
+    health: {
+      api: { status: 'ok', latency: 18 },
+      skills: { ready: 33, total: 33 },
+      memory_layers: [
+        { layer: 'L1', name: 'Facts', count: 12 },
+        { layer: 'L2', name: 'Episodes', count: 8 },
+        { layer: 'L3', name: 'Profile', count: 1 }
+      ],
+      providers: [
+        { name: 'openai', model: 'gpt-4o', status: 'ok' },
+        { name: 'anthropic', model: 'claude-3.5-sonnet', status: 'ok' }
+      ]
+    },
+    activity: [
+      { type: 'loop', summary: 'Reflected on task #t-1041 (stock-analysis)', ts: '2026-07-24T09:42:00Z' },
+      { type: 'task', summary: 'Task t-1041 step "fetch" completed in 1.2s', ts: '2026-07-24T09:40:00Z' },
+      { type: 'fact', summary: 'Stored fact skill:alpha:last_output = "AAPL ↑1.8%"', ts: '2026-07-24T09:38:00Z' },
+      { type: 'task', summary: 'Task t-1039 finished (summarize, 3 rounds)', ts: '2026-07-24T08:55:00Z' },
+      { type: 'loop', summary: 'Reflection loop iterated memory layer L2', ts: '2026-07-24T08:30:00Z' }
+    ]
+  },
+  '/skills': [
+    { name: 'browser-automation', path: 'skills/browser-automation/', runtime: 'python', entrypoint: 'main.py', description: 'Drive a headless browser to scrape, navigate, and interact with web pages.', requires_bins: ['python', 'playwright'] },
+    { name: 'stock-analysis', path: 'skills/stock-analysis/', runtime: 'python', entrypoint: 'analyze.py', description: 'Fetch quotes and compute technical indicators for a ticker symbol.', requires_bins: ['python'] },
+    { name: 'tavily-search', path: 'skills/tavily-search/', runtime: 'python', entrypoint: 'search.py', description: 'Search the web via the Tavily API and return summarized results.', requires_bins: ['python'] },
+    { name: 'weather-query', path: 'skills/weather-query/', runtime: 'shell', entrypoint: 'weather.sh', description: 'Query current weather for a city using wttr.in.', requires_bins: ['curl', 'jq'] },
+    { name: 'summarize', path: 'skills/summarize/', runtime: 'prompt', entrypoint: 'summarize.prompt.md', description: 'Summarize long-form text into a concise brief with key points.', requires_bins: [] },
+    { name: 'code-review', path: 'skills/code-review/', runtime: 'prompt', entrypoint: 'review.prompt.md', description: 'Review a code diff for bugs, style, and security issues.', requires_bins: [] },
+    { name: 'doc-generator', path: 'skills/doc-generator/', runtime: 'node', entrypoint: 'generate.js', description: 'Generate Markdown documentation from source code comments.', requires_bins: ['node'] },
+    { name: 'translate', path: 'skills/translate/', runtime: 'prompt', entrypoint: 'translate.prompt.md', description: 'Translate text between languages with tone preservation.', requires_bins: [] }
+  ],
+  '/memory/facts': [
+    { key: 'user:timezone', value: 'Asia/Shanghai', layer: 'L1' },
+    { key: 'user:language', value: 'zh-CN', layer: 'L1' },
+    { key: 'user:theme', value: 'dark', layer: 'L1' },
+    { key: 'skill:alpha:last_output', value: 'AAPL ↑1.8%', layer: 'L1' },
+    { key: 'skill:tavily:last_query', value: 'GLM-5 release notes', layer: 'L1' },
+    { key: 'env:preferred_editor', value: 'Trae', layer: 'L1' }
+  ],
+  '/memory/episodes': [
+    { kind: 'loop', summary: 'Reflected on task #t-1041; reinforced stock-analysis flow.', ts: '2026-07-24T09:42:00Z', detail: 'Loop step 1: load task context\nLoop step 2: diff prior vs current output\nLoop step 3: write L1 fact skill:alpha:last_output' },
+    { kind: 'task', summary: 'Task t-1041 (stock-analysis) completed in 3.4s.', ts: '2026-07-24T09:40:00Z', detail: 'Steps: fetch -> analyze -> report\nDuration: 3.4s\nResult: ok' },
+    { kind: 'fact', summary: 'Stored skill:alpha:last_output = "AAPL ↑1.8%"', ts: '2026-07-24T09:38:00Z', detail: 'Writer: reflection-loop\nLayer: L1\nTTL: persistent' },
+    { kind: 'task', summary: 'Task t-1039 (summarize) completed, 3 rounds.', ts: '2026-07-24T08:55:00Z', detail: 'Rounds: 3\nTotal tokens: 4120\nStatus: ok' },
+    { kind: 'loop', summary: 'Reflection loop iterated L2 episodes.', ts: '2026-07-24T08:30:00Z', detail: 'Reviewed 8 episodes\nPromoted 1 to L1\nNo deletions' },
+    { kind: 'fact', summary: 'Updated user:language to zh-CN', ts: '2026-07-23T22:10:00Z', detail: 'Previous: en-US\nNew: zh-CN' },
+    { kind: 'task', summary: 'Task t-1037 (translate) failed: rate limit.', ts: '2026-07-23T18:02:00Z', detail: 'Error: 429 Too Many Requests\nRetries: 3\nFinal: failed' },
+    { kind: 'loop', summary: 'Nightly memory compaction ran.', ts: '2026-07-23T03:00:00Z', detail: 'Compacted 24 episodes into 6\nFreed 12KB' }
+  ],
+  '/memory/profile': {
+    timezone: 'Asia/Shanghai',
+    language: 'zh-CN',
+    theme: 'dark',
+    preferences: { response_style: 'concise', code_style: 'typed' },
+    skills_used: ['stock-analysis', 'summarize', 'translate', 'code-review'],
+    created_at: '2026-06-01T10:00:00Z',
+    updated_at: '2026-07-24T09:42:00Z'
+  },
+  '/tasks': [
+    {
+      task_id: 't-1041', mode: 'oneshot', status: 'COMPLETED',
+      steps: ['stock-analysis', 'summarize'],
+      created_at: '2026-07-24T09:38:00Z',
+      rounds: [
+        { ok: true, results: [{ step: 'stock-analysis', ok: true, output: 'AAPL ↑1.8%', duration: 1.2 }, { step: 'summarize', ok: true, output: 'Market bullish on AAPL.', duration: 0.8 }], duration: 2.0, errors: [] }
+      ]
+    },
+    {
+      task_id: 't-1042', mode: 'recurring', status: 'RUNNING',
+      steps: ['tavily-search', 'summarize'],
+      created_at: '2026-07-24T10:00:00Z',
+      interval: 300, max_runs: 6,
+      rounds: [
+        { ok: true, results: [{ step: 'tavily-search', ok: true, output: '5 results', duration: 0.9 }, { step: 'summarize', ok: true, output: 'AI news digest.', duration: 0.7 }], duration: 1.6, errors: [] }
+      ]
+    },
+    {
+      task_id: 't-1039', mode: 'oneshot', status: 'COMPLETED',
+      steps: ['summarize'],
+      created_at: '2026-07-24T08:50:00Z',
+      rounds: [
+        { ok: true, results: [{ step: 'summarize', ok: true, output: 'Brief generated.', duration: 0.6 }], duration: 0.6, errors: [] },
+        { ok: true, results: [{ step: 'summarize', ok: true, output: 'Refined brief.', duration: 0.5 }], duration: 0.5, errors: [] },
+        { ok: true, results: [{ step: 'summarize', ok: true, output: 'Final brief.', duration: 0.4 }], duration: 0.4, errors: [] }
+      ]
+    },
+    {
+      task_id: 't-1037', mode: 'oneshot', status: 'FAILED',
+      steps: ['translate'],
+      created_at: '2026-07-23T18:00:00Z',
+      rounds: [
+        { ok: false, results: [{ step: 'translate', ok: false, output: '', duration: 2.1 }], duration: 2.1, errors: ['429 Too Many Requests'] }
+      ]
+    },
+    {
+      task_id: 't-1040', mode: 'oneshot', status: 'PENDING',
+      steps: ['code-review', 'doc-generator'],
+      created_at: '2026-07-24T10:05:00Z',
+      rounds: []
+    }
+  ],
+  '/registry/sources': [
+    { name: 'local', type: 'filesystem', path: '~/.hermes/skills', skills: 5, agents: 1, online: true },
+    { name: 'hpj360/github', type: 'github', path: 'github.com/hpj360/hermes-skills', skills: 3, agents: 1, online: true }
+  ],
+  '/registry/skills': [
+    { name: 'browser-automation', sources: { local: true, 'hpj360/github': false } },
+    { name: 'stock-analysis', sources: { local: true, 'hpj360/github': true } },
+    { name: 'tavily-search', sources: { local: true, 'hpj360/github': true } },
+    { name: 'weather-query', sources: { local: false, 'hpj360/github': true } },
+    { name: 'summarize', sources: { local: true, 'hpj360/github': true } },
+    { name: 'code-review', sources: { local: true, 'hpj360/github': false } },
+    { name: 'doc-generator', sources: { local: false, 'hpj360/github': true } },
+    { name: 'translate', sources: { local: true, 'hpj360/github': true } }
+  ],
+  '/registry/agents': [
+    { name: 'research-agent', source: 'local', skills: ['tavily-search', 'summarize'] },
+    { name: 'dev-assistant', source: 'hpj360/github', skills: ['code-review', 'doc-generator'] }
+  ],
+  '/registry/knowledge': [
+    { name: 'architecture.md', source: 'local', size: '4.2 KB' },
+    { name: 'skill-spec.md', source: 'hpj360/github', size: '8.1 KB' },
+    { name: 'api-contracts.md', source: 'hpj360/github', size: '12.5 KB' },
+    { name: 'runbook.md', source: 'local', size: '2.0 KB' }
+  ],
+  '/profile': {
+    timezone: 'Asia/Shanghai',
+    language: 'zh-CN',
+    theme: 'dark',
+    preferences: { response_style: 'concise', code_style: 'typed', max_tokens: 4096 },
+    skills_used: ['stock-analysis', 'summarize', 'translate', 'code-review'],
+    notifications: { email: false, desktop: true },
+    created_at: '2026-06-01T10:00:00Z',
+    updated_at: '2026-07-24T09:42:00Z'
+  },
+  '/workflows': [
+    {
+      id: 'wf-001',
+      name: '晨报生成',
+      description: '每日早晨抓取新闻、汇总并翻译为中文报告',
+      steps: [
+        { id: 'step-1', skill: 'tavily-search', args: '--query "AI 行业动态"', depends_on: [] },
+        { id: 'step-2', skill: 'summarize', args: '', depends_on: ['step-1'] },
+        { id: 'step-3', skill: 'translate', args: '--to zh-CN', depends_on: ['step-2'] }
+      ],
+      created_at: '2026-07-22T08:00:00Z'
+    },
+    {
+      id: 'wf-002',
+      name: '代码审查流水线',
+      description: '从 GitHub 拉取 PR 差异、审查并生成文档',
+      steps: [
+        { id: 'step-1', skill: 'code-review', args: '--diff pr-123.diff', depends_on: [] },
+        { id: 'step-2', skill: 'doc-generator', args: '--format md', depends_on: ['step-1'] }
+      ],
+      created_at: '2026-07-23T14:00:00Z'
+    },
+    {
+      id: 'wf-003',
+      name: '股票分析报告',
+      description: '抓取行情、分析并生成简报',
+      steps: [
+        { id: 'step-1', skill: 'stock-analysis', args: '--ticker AAPL', depends_on: [] },
+        { id: 'step-2', skill: 'summarize', args: '', depends_on: ['step-1'] }
+      ],
+      created_at: '2026-07-24T09:30:00Z'
+    }
+  ],
+  '/workflows/wf-001/executions': [
+    {
+      id: 'exec-0099',
+      workflow_id: 'wf-001',
+      status: 'COMPLETED',
+      started_at: '2026-07-24T09:00:00Z',
+      duration: 3.2,
+      steps: [
+        { id: 'step-1', skill: 'tavily-search', ok: true, stdout: '查询完成，共 5 条结果\n[1] GLM-5 release notes\n[2] Anthropic Claude update\n[3] OpenAI dev day\n[4] Llama 4 benchmark\n[5] AI safety report', stderr: '', duration: 1.1 },
+        { id: 'step-2', skill: 'summarize', ok: true, stdout: '本日 AI 行业动态：多家厂商发布新模型，性能持续提升，安全研究亦在推进。', stderr: '', duration: 0.8 },
+        { id: 'step-3', skill: 'translate', ok: true, stdout: '今日 AI 行业动态：多家厂商发布新模型，性能持续提升，安全研究亦在推进。', stderr: '', duration: 1.3 }
+      ]
+    },
+    {
+      id: 'exec-0098',
+      workflow_id: 'wf-001',
+      status: 'FAILED',
+      started_at: '2026-07-23T09:00:00Z',
+      duration: 1.5,
+      steps: [
+        { id: 'step-1', skill: 'tavily-search', ok: false, stdout: '', stderr: 'HTTP 429 Too Many Requests\nRate limit exceeded. Retries exhausted.', duration: 1.5 }
+      ]
+    },
+    {
+      id: 'exec-0097',
+      workflow_id: 'wf-001',
+      status: 'COMPLETED',
+      started_at: '2026-07-22T09:00:00Z',
+      duration: 2.8,
+      steps: [
+        { id: 'step-1', skill: 'tavily-search', ok: true, stdout: '查询完成，共 4 条结果', stderr: '', duration: 0.9 },
+        { id: 'step-2', skill: 'summarize', ok: true, stdout: '汇总：AI 领域稳步发展。', stderr: '', duration: 0.7 },
+        { id: 'step-3', skill: 'translate', ok: true, stdout: '汇总：AI 领域稳步发展。', stderr: '', duration: 1.2 }
+      ]
+    }
+  ],
+  '/workflows/wf-002/executions': [
+    {
+      id: 'exec-0201',
+      workflow_id: 'wf-002',
+      status: 'COMPLETED',
+      started_at: '2026-07-23T15:00:00Z',
+      duration: 4.1,
+      steps: [
+        { id: 'step-1', skill: 'code-review', ok: true, stdout: '审查完成：3 个建议，0 个严重问题\n- 建议抽取公共逻辑\n- 优化命名\n- 增加单元测试', stderr: '', duration: 2.3 },
+        { id: 'step-2', skill: 'doc-generator', ok: true, stdout: '已生成 README.md (4.2 KB)\n已生成 API.md (8.1 KB)', stderr: '', duration: 1.8 }
+      ]
+    }
+  ],
+  '/workflows/wf-003/executions': [
+    {
+      id: 'exec-0301',
+      workflow_id: 'wf-003',
+      status: 'RUNNING',
+      started_at: '2026-07-24T10:08:00Z',
+      duration: 0,
+      steps: [
+        { id: 'step-1', skill: 'stock-analysis', ok: true, stdout: 'AAPL 收盘价 198.45 (+1.8%)\nRSI: 62.4\nMACD: 金叉', stderr: '', duration: 1.4 }
+      ]
+    }
+  ],
+  '/triggers': [
+    {
+      id: 'trg-001',
+      workflow_id: 'wf-001',
+      type: 'cron',
+      config: { schedule: '0 9 * * 1-5' },
+      enabled: true,
+      created_at: '2026-07-22T08:05:00Z'
+    },
+    {
+      id: 'trg-002',
+      workflow_id: 'wf-002',
+      type: 'github',
+      config: { repo: 'hpj360/hermes', label: 'review-ready' },
+      enabled: true,
+      created_at: '2026-07-23T14:05:00Z'
+    },
+    {
+      id: 'trg-003',
+      workflow_id: 'wf-001',
+      type: 'webhook',
+      config: { secret: 'whsecret_demo_123' },
+      enabled: false,
+      created_at: '2026-07-24T10:00:00Z'
+    }
+  ],
+  '/projects': [
+    {
+      id: 'prj-001',
+      name: '本地工作台',
+      type: 'filesystem',
+      url: '~/.hermes',
+      token: '',
+      status: 'connected',
+      skills_count: 8,
+      agents_count: 2,
+      knowledge_count: 4,
+      last_sync: '2026-07-24T09:42:00Z'
+    },
+    {
+      id: 'prj-002',
+      name: 'Hermes GitHub 仓库',
+      type: 'github',
+      url: 'github.com/hpj360/hermes',
+      token: 'ghp_**********',
+      status: 'connected',
+      skills_count: 12,
+      agents_count: 3,
+      knowledge_count: 8,
+      last_sync: '2026-07-23T22:00:00Z'
+    },
+    {
+      id: 'prj-003',
+      name: '远程分析服务',
+      type: 'api',
+      url: 'https://api.example.com/hermes',
+      token: 'sk-**********',
+      status: 'disconnected',
+      skills_count: 5,
+      agents_count: 1,
+      knowledge_count: 2,
+      last_sync: '2026-07-20T10:00:00Z'
+    }
+  ],
+  '/projects/summary': {
+    total: 3,
+    connected: 2,
+    disconnected: 1,
+    error: 0,
+    total_skills: 25,
+    total_agents: 6,
+    total_knowledge: 14
+  }
+};
+
+/* ---------- API client with mock fallback ---------- */
+function authHeaders() {
+  const h = { 'Accept': 'application/json' };
+  const token = localStorage.getItem('hermes_token');
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  return h;
+}
+async function api(path) {
+  if (DEMO_MODE) {
+    await new Promise(r => setTimeout(r, 280 + Math.random() * 220)); // simulate latency
+    const d = MOCK[path];
+    if (d === undefined) return { error: 'no mock', demo: true };
+    return JSON.parse(JSON.stringify(d));
+  }
+  try {
+    const res = await fetch(path, { headers: authHeaders() });
+    if (!res.ok) throw res;
+    const data = await res.json();
+    return normalizeApiResponse(path, data);
+  } catch (e) {
+    const mock = MOCK[path];
+    if (mock !== undefined) return JSON.parse(JSON.stringify(mock));
+    return { error: 'offline', demo: true };
+  }
+}
+
+/* ---------- Helpers ---------- */
+const $ = (sel, root = document) => root.querySelector(sel);
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const fmtTime = (iso) => {
+  const d = new Date(iso);
+  const now = new Date('2026-07-24T10:10:00Z');
+  const diff = (now - d) / 1000;
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return Math.floor(diff/60) + '分钟前';
+  if (diff < 86400) return Math.floor(diff/3600) + '小时前';
+  return Math.floor(diff/86400) + '天前';
+};
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- Components ---------- */
+function Badge(text, color = 'gray', dot = false) {
+  return `<span class="badge ${color} ${dot ? 'dot' : ''}">${esc(text)}</span>`;
+}
+function Skeleton(lines = 3) {
+  let html = '';
+  for (let i = 0; i < lines; i++) html += `<div class="skeleton sk-line ${i === lines-1 ? 'short' : ''}"></div>`;
+  return html;
+}
+function EmptyState(icon, message) {
+  return `<div class="empty"><div class="ico">${icon}</div><div class="msg">${esc(message)}</div></div>`;
+}
+function ErrorState(message, retry) {
+  return `<div class="error-state"><div class="ico">⚠</div><div class="msg">${esc(message)}</div><button class="btn sm" onclick="${retry}">重试</button></div>`;
+}
+function Card(title, contentHtml, actionsHtml = '') {
+  return `<div class="card"><div class="card-title">${esc(title)}<span class="actions">${actionsHtml}</span></div>${contentHtml}</div>`;
+}
+
+function toast(message, type = 'info') {
+  const t = el('div', 'toast ' + type);
+  const icons = { success: '✓', error: '✕', info: 'ℹ' };
+  t.innerHTML = `<span class="t-ico">${icons[type] || 'ℹ'}</span><span>${esc(message)}</span>`;
+  $('#toastStack').appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .2s'; setTimeout(() => t.remove(), 200); }, 2600);
+}
+
+function modal(title, bodyHtml, footHtml = '') {
+  $('#modalTitle').textContent = title;
+  $('#modalBody').innerHTML = bodyHtml;
+  $('#modalFoot').innerHTML = footHtml;
+  $('#modalRoot').classList.add('open');
+}
+function closeModal() { $('#modalRoot').classList.remove('open'); }
+
+/* ---------- JSON syntax highlight ---------- */
+function highlightJson(obj) {
+  const json = JSON.stringify(obj, null, 2);
+  return esc(json)
+    .replace(/(&quot;[^&]*?&quot;)(\s*):/g, '<span class="jk">$1</span>$2:')
+    .replace(/:\s*(&quot;[^&]*?&quot;)/g, (m, s) => ': <span class="js">' + s + '</span>')
+    .replace(/:\s*(true|false)/g, ': <span class="jb">$1</span>')
+    .replace(/:\s*(-?\d+\.?\d*)/g, ': <span class="jn">$1</span>')
+    .replace(/:\s*null/g, ': <span class="jn-null">null</span>');
+}
+
+/* ============================================================
+ * Router
+ * ============================================================ */
+const routes = ['overview', 'skills', 'memory', 'tasks', 'registry', 'profile', 'orchestrate', 'hub'];
+let currentRoute = 'overview';
+const routeState = {};
+
+function router() {
+  let hash = location.hash.slice(2);
+  if (!hash || !routes.includes(hash)) hash = 'overview';
+  currentRoute = hash;
+
+  // active nav
+  document.querySelectorAll('.nav-item[data-route]').forEach(n => {
+    n.classList.toggle('active', n.dataset.route === hash);
+  });
+
+  // close mobile sidebar
+  $('#sidebar').classList.remove('open');
+
+  render(hash);
+}
+
+async function render(route) {
+  const content = $('#content');
+  content.innerHTML = `<div class="page">${Skeleton(5)}<div class="skeleton sk-block"></div></div>`;
+
+  try {
+    switch (route) {
+      case 'overview': await renderOverview(); break;
+      case 'skills': await renderSkills(); break;
+      case 'memory': await renderMemory(); break;
+      case 'tasks': await renderTasks(); break;
+      case 'registry': await renderRegistry(); break;
+      case 'profile': await renderProfile(); break;
+      case 'orchestrate': await renderOrchestrate(); break;
+      case 'hub': await renderHub(); break;
+    }
+  } catch (e) {
+    content.innerHTML = `<div class="page">${ErrorState('加载失败: ' + e.message, 'render(\''+route+'\')')}</div>`;
+  }
+}
+
+/* ============================================================
+ * Page: Overview
+ * ============================================================ */
+async function renderOverview() {
+  // Compose overview from multiple API calls (with mock fallback)
+  const [health, skills, facts, episodes, tasks, sources] = await Promise.all([
+    api('/health'), api('/skills'), api('/memory/facts'), api('/memory/episodes'), api('/tasks'), api('/registry/sources')
+  ]);
+
+  // If all calls failed, show error
+  if (health.error && skills.error) {
+    $('#content').innerHTML = `<div class="page">${ErrorState('无法连接到 API', 'render(\'overview\')')}</div>`;
+    return;
+  }
+
+  // Build composite data structure matching the render template
+  const data = {
+    stats: {
+      skills: health.skills_total || (Array.isArray(skills) ? skills.length : 0),
+      memory: Array.isArray(facts) ? facts.length : 0,
+      tasks: Array.isArray(tasks) ? tasks.length : 0,
+      sources: Array.isArray(sources) ? sources.length : 0
+    },
+    health: {
+      api: { status: health.status || 'ok', latency: 0 },
+      skills: { ready: health.skills_ready || 0, total: health.skills_total || (Array.isArray(skills) ? skills.length : 0) },
+      memory_layers: [
+        { layer: 'L1', name: 'Facts', count: Array.isArray(facts) ? facts.length : 0 },
+        { layer: 'L2', name: 'Episodes', count: Array.isArray(episodes) ? episodes.length : 0 },
+        { layer: 'L3', name: 'Profile', count: 1 }
+      ],
+      providers: (health.providers || []).map(p => ({ name: p, model: '', status: 'ok' }))
+    },
+    activity: Array.isArray(episodes) ? episodes.slice(0, 5).map(e => ({
+      type: e.kind || 'loop',
+      summary: e.summary || '',
+      ts: e.ts || new Date((e.created_at || 0) * 1000).toISOString()
+    })) : []
+  };
+
+  const statCards = [
+    { val: data.stats.skills, label: '技能', ico: '▤', route: 'skills' },
+    { val: data.stats.memory, label: '记忆', ico: '⚡', route: 'memory' },
+    { val: data.stats.tasks, label: '任务', ico: '☑', route: 'tasks' },
+    { val: data.stats.sources, label: '数据源', ico: '🔗', route: 'registry' }
+  ].map(s => `
+    <div class="card stat" onclick="location.hash='#/${s.route}'">
+      <div class="stat-top">
+        <div class="stat-ico">${s.ico}</div>
+      </div>
+      <div class="stat-val">${s.val}</div>
+      <div class="stat-label">${s.label}</div>
+    </div>
+  `).join('');
+
+  const healthRows = [
+    `<div class="health-row"><span class="hk">API 状态</span><span class="hv"><span class="dot"></span> 正常 · ${data.health.api.latency}ms</span></div>`,
+    `<div class="health-row"><span class="hk">技能就绪率</span><span class="hv">${data.health.skills.ready}/${data.health.skills.total} 就绪</span></div>`,
+    `<div class="health-row"><span class="hk">记忆层级</span><span class="hv">${data.health.memory_layers.map(l => `<span class="layer-tag ${l.layer.toLowerCase()}">${l.layer} ${l.name} · ${l.count}</span>`).join('')}</span></div>`,
+    `<div class="health-row"><span class="hk">提供商</span><span class="hv">${data.health.providers.map(p => `<span class="badge gray dot">${p.name} · ${p.model}</span>`).join(' ')}</span></div>`
+  ].join('');
+
+  const feedIcons = { loop: '🔄', fact: '📝', task: '📋' };
+  const feed = data.activity.map(a => `
+    <div class="feed-item">
+      <div class="ico">${feedIcons[a.type] || '•'}</div>
+      <div class="body">
+        <div class="summary">${esc(a.summary)}</div>
+        <div class="meta">${a.type} · ${fmtTime(a.ts)}</div>
+      </div>
+    </div>
+  `).join('');
+
+  $('#content').innerHTML = `
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="page-title">概览</div>
+          <div class="page-sub">工作台健康状态与最近活动一览。</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn" onclick="renderOverview()">↻ 刷新</button>
+        </div>
+      </div>
+      <div class="grid grid-4" style="margin-bottom:16px;">${statCards}</div>
+      <div class="grid grid-2">
+        ${Card('系统健康', `<div>${healthRows}</div>`)}
+        ${Card('最近活动', `<div>${feed}</div>`)}
+      </div>
+    </div>
+  `;
+}
+
+/* ============================================================
+ * Page: Skills
+ * ============================================================ */
+let skillsData = [];
+let skillsFilter = { q: '', runtime: 'all', selected: null };
+
+async function renderSkills() {
+  const data = await api('/skills');
+  if (data.error) { $('#content').innerHTML = `<div class="page">${ErrorState(data.error, 'render(\'skills\')')}</div>`; return; }
+  skillsData = data;
+  drawSkills();
+}
+
+function drawSkills() {
+  const runtimes = ['all', 'prompt', 'python', 'shell', 'node'];
+  const runtimeLabels = { all: '全部', prompt: '提示词', python: 'Python', shell: 'Shell', node: 'Node' };
+  const filtered = skillsData.filter(s => {
+    if (skillsFilter.runtime !== 'all' && s.runtime !== skillsFilter.runtime) return false;
+    if (skillsFilter.q) {
+      const q = skillsFilter.q.toLowerCase();
+      if (!s.name.toLowerCase().includes(q) && !s.description.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const cards = filtered.length ? filtered.map(s => `
+    <div class="skill-card ${skillsFilter.selected === s.name ? 'selected' : ''}" onclick="selectSkill('${s.name}')">
+      <div class="row1">
+        <span class="name">${esc(s.name)}</span>
+        ${Badge(s.runtime, s.runtime)}
+      </div>
+      <div class="desc">${esc(s.description)}</div>
+      <div class="meta"><span>${esc(s.path)}</span></div>
+    </div>
+  `).join('') : EmptyState('🔍', '没有匹配的技能');
+
+  const detail = skillsFilter.selected ? renderSkillDetail(skillsData.find(s => s.name === skillsFilter.selected)) : '';
+
+  $('#content').innerHTML = `
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="page-title">技能</div>
+          <div class="page-sub">浏览、检查并运行已注册的技能。</div>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <input class="input" id="skillSearch" placeholder="按名称或描述搜索技能..." value="${esc(skillsFilter.q)}" oninput="onSkillSearch(this.value)" />
+      </div>
+      <div class="chips" style="margin-bottom:16px;">
+        ${runtimes.map(r => `<button class="chip ${skillsFilter.runtime === r ? 'active' : ''}" onclick="setSkillRuntime('${r}')">${runtimeLabels[r]}</button>`).join('')}
+      </div>
+      <div class="skill-grid">${cards}</div>
+      ${detail}
+    </div>
+  `;
+}
+
+function onSkillSearch(v) { skillsFilter.q = v; drawSkills(); }
+function setSkillRuntime(r) { skillsFilter.runtime = r; drawSkills(); }
+function selectSkill(name) { skillsFilter.selected = skillsFilter.selected === name ? null : name; drawSkills(); }
+
+function renderSkillDetail(s) {
+  return `
+    <div class="detail-panel">
+      <div class="detail-head">
+        <span class="title">${esc(s.name)}</span>
+        <button class="icon-btn" onclick="selectSkill('${s.name}')">✕</button>
+      </div>
+      <div class="detail-body">
+        <div>
+          <div class="kv">
+            <span class="k">name</span><span class="v">${esc(s.name)}</span>
+            <span class="k">path</span><span class="v">${esc(s.path)}</span>
+            <span class="k">runtime</span><span class="v">${Badge(s.runtime, s.runtime)}</span>
+            <span class="k">entrypoint</span><span class="v">${esc(s.entrypoint)}</span>
+            <span class="k">requires_bins</span><span class="v">${s.requires_bins.length ? s.requires_bins.map(b => `<span class="badge gray">${esc(b)}</span>`).join(' ') : '—'}</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;">描述</div>
+          <div style="font-size:13px;color:var(--text);line-height:1.6;">${esc(s.description)}</div>
+        </div>
+      </div>
+      <div class="run-panel">
+        <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">运行</div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
+          <input class="input" id="runArgs-${s.name}" placeholder='参数，例如 --ticker AAPL' />
+          <button class="btn primary" onclick="runSkill('${s.name}')">▶ 执行</button>
+        </div>
+        <div class="run-output empty" id="runOut-${s.name}">输出将显示在此处。</div>
+      </div>
+    </div>
+  `;
+}
+
+async function runSkill(name) {
+  const args = $(`#runArgs-${name}`).value.trim();
+  const out = $(`#runOut-${name}`);
+  out.classList.remove('empty');
+  out.textContent = '$ 正在执行 ' + name + (args ? ' ' + args : '') + ' ...\n';
+
+  // Try real API first
+  try {
+    const argList = args ? args.split(/\s+/) : [];
+    const res = await fetch(`/skills/${name}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ args: argList })
+    });
+    if (res.ok) {
+      const result = await res.json();
+      out.textContent += (result.stdout || '') + (result.stderr ? '\n[stderr] ' + result.stderr : '');
+      out.textContent += `\n✓ 执行完成 (退出码: ${result.exit_code}, 耗时: ${result.duration.toFixed(2)}s)`;
+      toast('技能 ' + name + ' 已执行', result.ok ? 'success' : 'error');
+      return;
+    }
+  } catch (e) { /* fall through to mock */ }
+
+  // Fallback: mock execution
+  let i = 0;
+  const lines = [
+    '[演示] 正在加载技能清单...',
+    '[演示] runtime: ' + (skillsData.find(s=>s.name===name)||{}).runtime,
+    '[演示] 参数已解析: ' + (args || '(无)'),
+    '[演示] ✓ 执行完成 (模拟)',
+    '[演示] 结果: { "ok": true, "duration_ms": ' + (200 + Math.floor(Math.random()*800)) + ' }'
+  ];
+  const tick = () => {
+    if (i < lines.length) { out.textContent += lines[i++] + '\n'; out.scrollTop = out.scrollHeight; setTimeout(tick, 220); }
+  };
+  tick();
+  toast('技能 ' + name + ' 已执行 (模拟)', 'success');
+}
+
+/* ============================================================
+ * Page: Memory
+ * ============================================================ */
+let memoryTab = 'facts';
+let episodeFilter = 'all';
+let memoryData = { facts: [], episodes: [], profile: {} };
+
+async function renderMemory() {
+  const [facts, episodes, profile] = await Promise.all([api('/memory/facts'), api('/memory/episodes'), api('/memory/profile')]);
+  memoryData = { facts: facts || [], episodes: episodes || [], profile: profile || {} };
+  drawMemory();
+}
+
+function drawMemory() {
+  const tabs = [
+    { id: 'facts', label: '事实', count: memoryData.facts.length, sub: 'L1' },
+    { id: 'episodes', label: '事件', count: memoryData.episodes.length, sub: 'L2' },
+    { id: 'profile', label: '画像', count: 1, sub: 'L3' }
+  ];
+
+  let body = '';
+  if (memoryTab === 'facts') {
+    const list = memoryData.facts.map(f => `
+      <div class="fact-row">
+        <span class="key">${esc(f.key)}</span>
+        <span class="sep">=</span>
+        <span class="val">${esc(f.value)}</span>
+        <button class="btn sm danger del" onclick="deleteFact('${esc(f.key)}')">✕ 删除</button>
+      </div>
+    `).join('');
+    body = `
+      <div style="margin-bottom:16px;">
+        <div class="card" style="padding:14px;">
+          <div class="card-title">新建事实</div>
+          <div style="display:grid;grid-template-columns:200px 1fr auto;gap:8px;align-items:start;">
+            <input class="input" id="factKey" placeholder="键名，例如 user:city" />
+            <textarea class="textarea" id="factValue" placeholder="值" style="min-height:38px;"></textarea>
+            <button class="btn primary" onclick="addFact()">+ 提交</button>
+          </div>
+        </div>
+      </div>
+      ${list || EmptyState('∅', '暂无存储的事实')}
+    `;
+  } else if (memoryTab === 'episodes') {
+    const kinds = ['all', 'loop', 'fact', 'task'];
+    const kindLabels = { all: '全部', loop: 'loop', fact: 'fact', task: 'task' };
+    const filtered = memoryData.episodes.filter(e => episodeFilter === 'all' || e.kind === episodeFilter);
+    const icons = { loop: '🔄', fact: '📝', task: '📋' };
+    const list = filtered.map((e, idx) => `
+      <div class="episode" onclick="this.classList.toggle('open')">
+        <div class="ico">${icons[e.kind] || '•'}</div>
+        <div class="body">
+          <div class="top">${Badge(e.kind, 'blue')} <span class="time">${fmtTime(e.ts)}</span></div>
+          <div class="summary">${esc(e.summary)}</div>
+          <div class="expand">${esc(e.detail)}</div>
+        </div>
+      </div>
+    `).join('');
+    body = `
+      <div class="chips" style="margin-bottom:14px;">
+        ${kinds.map(k => `<button class="chip ${episodeFilter === k ? 'active' : ''}" onclick="setEpisodeFilter('${k}')">${kindLabels[k]}</button>`).join('')}
+      </div>
+      ${list || EmptyState('∅', '暂无记录的事件')}
+    `;
+  } else {
+    body = `<div class="json-view">${highlightJson(memoryData.profile)}</div>`;
+  }
+
+  $('#content').innerHTML = `
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="page-title">记忆</div>
+          <div class="page-sub">三层记忆：事实、事件和画像。</div>
+        </div>
+      </div>
+      <div class="tabs">
+        ${tabs.map(t => `<button class="tab ${memoryTab === t.id ? 'active' : ''}" onclick="setMemoryTab('${t.id}')">${t.label} <span class="count">${t.count} · ${t.sub}</span></button>`).join('')}
+      </div>
+      ${body}
+    </div>
+  `;
+}
+
+function setMemoryTab(t) { memoryTab = t; drawMemory(); }
+function setEpisodeFilter(k) { episodeFilter = k; drawMemory(); }
+function addFact() {
+  const k = $('#factKey').value.trim();
+  const v = $('#factValue').value.trim();
+  if (!k || !v) { toast('键名和值不能为空', 'error'); return; }
+  memoryData.facts.unshift({ key: k, value: v, layer: 'L1' });
+  $('#factKey').value = ''; $('#factValue').value = '';
+  toast('事实已添加', 'success');
+  drawMemory();
+}
+function deleteFact(key) {
+  memoryData.facts = memoryData.facts.filter(f => f.key !== key);
+  toast('事实已删除', 'info');
+  drawMemory();
+}
+
+/* ============================================================
+ * Page: Tasks
+ * ============================================================ */
+let tasksData = [];
+let selectedTask = null;
+let newTaskSteps = [{ skill: '', args: '' }];
+let newTaskMode = 'oneshot';
+
+async function renderTasks() {
+  const data = await api('/tasks');
+  if (data.error) { $('#content').innerHTML = `<div class="page">${ErrorState(data.error, 'render(\'tasks\')')}</div>`; return; }
+  tasksData = data;
+  drawTasks();
+}
+
+function drawTasks() {
+  const statusColor = { PENDING: 'gray', RUNNING: 'blue', COMPLETED: 'green', FAILED: 'red', CANCELLED: 'orange' };
+  const statusLabels = { PENDING: '等待中', RUNNING: '运行中', COMPLETED: '已完成', FAILED: '失败', CANCELLED: '已取消' };
+  const modeLabels = { oneshot: '单次', recurring: '循环' };
+  const list = tasksData.map(t => `
+    <div class="task-card ${selectedTask === t.task_id ? 'selected' : ''}" onclick="selectTask('${t.task_id}')">
+      <div class="top">
+        <span class="id">${esc(t.task_id)}</span>
+        ${Badge(modeLabels[t.mode] || t.mode, t.mode === 'recurring' ? 'orange' : 'gray')}
+        ${Badge(statusLabels[t.status] || t.status, statusColor[t.status] || 'gray', true)}
+        <span class="time">${fmtTime(t.created_at)}</span>
+      </div>
+      <div class="step-chain">
+        ${t.steps.map((s, i) => `<span class="step-pill">${esc(s)}</span>${i < t.steps.length-1 ? '<span class="step-arrow">→</span>' : ''}`).join('')}
+        ${t.mode === 'recurring' ? `<span class="step-pill" style="margin-left:auto;">每 ${t.interval}s · ${t.max_runs}x</span>` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  const skillsOpts = MOCK['/skills'].map(s => s.name);
+  const builder = newTaskSteps.map((st, i) => `
+    <div class="step-builder">
+      <select class="select" onchange="updateStep(${i}, 'skill', this.value)">
+        <option value="">选择技能...</option>
+        ${skillsOpts.map(n => `<option value="${n}" ${st.skill === n ? 'selected' : ''}>${n}</option>`).join('')}
+      </select>
+      <input class="input" placeholder="参数（可选）" value="${esc(st.args)}" oninput="updateStep(${i}, 'args', this.value)" />
+      <span class="rm" onclick="removeStep(${i})" title="移除">✕</span>
+    </div>
+  `).join('');
+
+  const detail = selectedTask ? renderTaskDetail(tasksData.find(t => t.task_id === selectedTask)) : '';
+
+  $('#content').innerHTML = `
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="page-title">任务</div>
+          <div class="page-sub">调度和监控多步骤任务执行。</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn primary" onclick="addStep()">+ 添加步骤</button>
+        </div>
+      </div>
+      <div class="grid grid-2-eq" style="margin-bottom:16px;">
+        <div class="card">
+          <div class="card-title">新建任务</div>
+          ${builder}
+          <div class="field" style="margin-top:8px;">
+            <label>模式</label>
+            <div class="chips">
+              <button class="chip ${newTaskMode === 'oneshot' ? 'active' : ''}" onclick="setTaskMode('oneshot')">单次</button>
+              <button class="chip ${newTaskMode === 'recurring' ? 'active' : ''}" onclick="setTaskMode('recurring')">循环</button>
+            </div>
+          </div>
+          ${newTaskMode === 'recurring' ? `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+              <div class="field" style="margin:0;"><label>间隔 (秒)</label><input class="input" id="ntInterval" type="number" value="300" /></div>
+              <div class="field" style="margin:0;"><label>最大运行次数</label><input class="input" id="ntMaxRuns" type="number" value="6" /></div>
+            </div>
+          ` : ''}
+          <button class="btn primary" onclick="createTask()">▶ 创建并运行</button>
+        </div>
+        <div class="card">
+          <div class="card-title">任务 <span class="actions">${tasksData.length}</span></div>
+          ${list || EmptyState('∅', '暂无任务')}
+        </div>
+      </div>
+      ${detail}
+    </div>
+  `;
+}
+
+function renderTaskDetail(t) {
+  const statusColor = { PENDING: 'gray', RUNNING: 'blue', COMPLETED: 'green', FAILED: 'red', CANCELLED: 'orange' };
+  const statusLabels = { PENDING: '等待中', RUNNING: '运行中', COMPLETED: '已完成', FAILED: '失败', CANCELLED: '已取消' };
+  const modeLabels = { oneshot: '单次', recurring: '循环' };
+  const rounds = t.rounds.length ? t.rounds.map((r, i) => `
+    <div class="round">
+      <div class="rh">${Badge('轮次 ' + (i+1), 'gray')} ${Badge(r.ok ? '成功' : '失败', r.ok ? 'green' : 'red')} <span class="rs" style="margin-left:auto;">${r.duration}s</span></div>
+      ${r.results.map(res => `<div class="rs">↳ ${esc(res.step)}: ${res.ok ? '✓' : '✕'} ${esc(res.output || '')} <span style="color:var(--text-3)">(${res.duration}s)</span></div>`).join('')}
+      ${r.errors.length ? `<div class="rs" style="color:var(--red);">错误: ${r.errors.map(e=>esc(e)).join('; ')}</div>` : ''}
+    </div>
+  `).join('') : EmptyState('∅', '尚未执行任何轮次');
+
+  const actions = t.status === 'RUNNING'
+    ? `<button class="btn danger sm" onclick="cancelTask('${t.task_id}')">取消</button>`
+    : t.status === 'PENDING'
+    ? `<button class="btn primary sm" onclick="runTask('${t.task_id}')">运行</button>`
+    : `<button class="btn sm" onclick="rerunTask('${t.task_id}')">重跑</button>`;
+
+  return `
+    <div class="detail-panel">
+      <div class="detail-head">
+        <span class="title">${esc(t.task_id)}</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          ${Badge(modeLabels[t.mode] || t.mode, t.mode === 'recurring' ? 'orange' : 'gray')}
+          ${Badge(statusLabels[t.status] || t.status, statusColor[t.status] || 'gray', true)}
+          ${actions}
+          <button class="icon-btn" onclick="selectTask(null)">✕</button>
+        </div>
+      </div>
+      <div class="detail-body" style="grid-template-columns:1fr;">
+        <div class="kv" style="margin-bottom:12px;">
+          <span class="k">created_at</span><span class="v">${esc(t.created_at)}</span>
+          <span class="k">steps</span><span class="v">${t.steps.map(s=>esc(s)).join(' → ')}</span>
+          ${t.mode === 'recurring' ? `<span class="k">interval</span><span class="v">${t.interval}s</span><span class="k">max_runs</span><span class="v">${t.max_runs}</span>` : ''}
+          <span class="k">rounds</span><span class="v">${t.rounds.length}</span>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">执行轮次</div>
+          ${rounds}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function selectTask(id) { selectedTask = selectedTask === id ? null : id; if (id === null) selectedTask = null; drawTasks(); }
+function addStep() { newTaskSteps.push({ skill: '', args: '' }); drawTasks(); }
+function removeStep(i) { newTaskSteps.splice(i, 1); if (!newTaskSteps.length) newTaskSteps.push({ skill: '', args: '' }); drawTasks(); }
+function updateStep(i, k, v) { newTaskSteps[i][k] = v; }
+function setTaskMode(m) { newTaskMode = m; drawTasks(); }
+
+async function createTask() {
+  const steps = newTaskSteps.filter(s => s.skill).map(s => s.skill);
+  if (!steps.length) { toast('请至少添加一个包含技能的步骤', 'error'); return; }
+  const plan = newTaskSteps.filter(s => s.skill).map(s => ({ skill: s.skill, args: s.args ? s.args.split(/\s+/) : [] }));
+  const mode = newTaskMode;
+  const body = { plan, mode, run: true };
+  if (mode === 'recurring') {
+    body.interval = parseInt($('#ntInterval').value) || 300;
+    body.max_runs = parseInt($('#ntMaxRuns').value) || 6;
+  }
+
+  // Try real API first
+  try {
+    const res = await fetch('/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      const task = await res.json();
+      tasksData.unshift(task);
+      newTaskSteps = [{ skill: '', args: '' }];
+      toast('任务 ' + task.task_id + ' 已创建并启动', 'success');
+      drawTasks();
+      return;
+    }
+  } catch (e) { /* fall through to mock */ }
+
+  // Fallback: mock creation
+  const id = 't-' + (1043 + tasksData.length);
+  const task = {
+    task_id: id, mode: newTaskMode, status: 'RUNNING',
+    steps, created_at: new Date().toISOString(),
+    rounds: []
+  };
+  if (newTaskMode === 'recurring') {
+    task.interval = parseInt($('#ntInterval').value) || 300;
+    task.max_runs = parseInt($('#ntMaxRuns').value) || 6;
+  }
+  tasksData.unshift(task);
+  newTaskSteps = [{ skill: '', args: '' }];
+  toast('任务 ' + id + ' 已创建并启动 (模拟)', 'success');
+  drawTasks();
+  setTimeout(() => {
+    task.status = 'COMPLETED';
+    task.rounds.push({ ok: true, results: steps.map(s => ({ step: s, ok: true, output: '模拟输出', duration: 0.5 + Math.random() })), duration: 1.2, errors: [] });
+    if (selectedTask === id) drawTasks();
+    toast('任务 ' + id + ' 已完成 (模拟)', 'info');
+  }, 1500);
+}
+
+function runTask(id) {
+  const t = tasksData.find(x => x.task_id === id);
+  if (!t) return;
+  t.status = 'RUNNING';
+  drawTasks();
+  setTimeout(() => {
+    t.status = 'COMPLETED';
+    t.rounds.push({ ok: true, results: t.steps.map(s => ({ step: s, ok: true, output: '模拟输出', duration: 0.4 + Math.random() })), duration: 1.0, errors: [] });
+    drawTasks();
+    toast('任务 ' + id + ' 已完成 (模拟)', 'success');
+  }, 1500);
+}
+function cancelTask(id) {
+  const t = tasksData.find(x => x.task_id === id);
+  if (t) { t.status = 'CANCELLED'; drawTasks(); toast('任务 ' + id + ' 已取消', 'info'); }
+}
+function rerunTask(id) {
+  const t = tasksData.find(x => x.task_id === id);
+  if (t) { t.status = 'RUNNING'; t.rounds = []; drawTasks(); setTimeout(() => runTask(id), 100); }
+}
+
+/* ============================================================
+ * Page: Registry
+ * ============================================================ */
+let registryTab = 'sources';
+let registryData = { sources: [], skills: [], agents: [], knowledge: [] };
+
+async function renderRegistry() {
+  const [sources, skills, agents, knowledge] = await Promise.all([
+    api('/registry/sources'), api('/registry/skills'), api('/registry/agents'), api('/registry/knowledge')
+  ]);
+  registryData = { sources: sources || [], skills: skills || [], agents: agents || [], knowledge: knowledge || [] };
+  drawRegistry();
+}
+
+function drawRegistry() {
+  const tabs = [
+    { id: 'sources', label: '数据源', count: registryData.sources.length },
+    { id: 'skills', label: '技能', count: registryData.skills.length },
+    { id: 'agents', label: '智能体', count: registryData.agents.length },
+    { id: 'knowledge', label: '知识文档', count: registryData.knowledge.length }
+  ];
+
+  let body = '';
+  if (registryTab === 'sources') {
+    const ico = { filesystem: '📁', github: '🐙' };
+    body = `<div class="grid grid-2-eq">${registryData.sources.map(s => `
+      <div class="source-card">
+        <div class="sico">${ico[s.type] || '💾'}</div>
+        <div class="sbody">
+          <div class="sname">${esc(s.name)}</div>
+          <div class="smeta">${esc(s.path)} · ${s.skills} 技能 · ${s.agents} 智能体</div>
+        </div>
+        ${Badge(s.online ? '在线' : '离线', s.online ? 'green' : 'gray', true)}
+      </div>
+    `).join('')}</div>`;
+  } else if (registryTab === 'skills') {
+    const sourceNames = registryData.sources.map(s => s.name);
+    body = `
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="matrix">
+          <thead><tr><th>技能</th>${sourceNames.map(n => `<th>${esc(n)}</th>`).join('')}</tr></thead>
+          <tbody>
+            ${registryData.skills.map(s => `
+              <tr>
+                <td class="skill-name">${esc(s.name)}</td>
+                ${sourceNames.map(n => `<td class="check">${s.sources[n] ? '<span class="yes">✓</span>' : '<span class="no">—</span>'}</td>`).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else if (registryTab === 'agents') {
+    body = registryData.agents.map(a => `
+      <div class="agent-row">
+        <div class="ico">🤖</div>
+        <div>
+          <div class="nm">${esc(a.name)}</div>
+          <div style="font-size:11px;color:var(--text-2);margin-top:2px;">技能: ${a.skills.map(s=>esc(s)).join(', ')}</div>
+        </div>
+        <span class="src">${esc(a.source)}</span>
+      </div>
+    `).join('') || EmptyState('∅', '暂无已注册的智能体');
+  } else {
+    body = registryData.knowledge.map(k => `
+      <div class="doc-row">
+        <div class="ico">📄</div>
+        <div>
+          <div class="nm">${esc(k.name)}</div>
+          <div style="font-size:11px;color:var(--text-2);margin-top:2px;">${esc(k.size)}</div>
+        </div>
+        <span class="src">${esc(k.source)}</span>
+      </div>
+    `).join('') || EmptyState('∅', '暂无知识文档');
+  }
+
+  $('#content').innerHTML = `
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="page-title">注册中心</div>
+          <div class="page-sub">跨数据源的技能、智能体和知识注册中心。</div>
+        </div>
+      </div>
+      <div class="tabs">
+        ${tabs.map(t => `<button class="tab ${registryTab === t.id ? 'active' : ''}" onclick="setRegistryTab('${t.id}')">${t.label} <span class="count">${t.count}</span></button>`).join('')}
+      </div>
+      ${body}
+    </div>
+  `;
+}
+
+function setRegistryTab(t) { registryTab = t; drawRegistry(); }
+
+/* ============================================================
+ * Page: Profile
+ * ============================================================ */
+let profileData = {};
+let profileEdit = false;
+
+async function renderProfile() {
+  const data = await api('/memory/profile');
+  if (data.error) { $('#content').innerHTML = `<div class="page">${ErrorState(data.error, 'render(\'profile\')')}</div>`; return; }
+  profileData = data;
+  drawProfile();
+}
+
+function drawProfile() {
+  const fieldDescs = [
+    { key: 'timezone', desc: 'IANA 时区，用于调度和时间戳。' },
+    { key: 'language', desc: '首选响应语言。' },
+    { key: 'theme', desc: 'UI 主题偏好 (dark/light)。' },
+    { key: 'preferences', desc: '嵌套的响应和代码风格选项。' },
+    { key: 'skills_used', desc: '用户调用过的技能历史。' },
+    { key: 'notifications', desc: '邮件和桌面通知开关。' },
+    { key: 'created_at', desc: '账户创建时间 (ISO 8601)。' },
+    { key: 'updated_at', desc: '最近一次更新画像时间 (ISO 8601)。' }
+  ];
+
+  const jsonHtml = profileEdit
+    ? `<textarea class="json-edit" id="profileEditArea">${esc(JSON.stringify(profileData, null, 2))}</textarea>`
+    : `<div class="json-view">${highlightJson(profileData)}</div>`;
+
+  const actions = profileEdit
+    ? `<button class="btn" onclick="cancelProfileEdit()">取消</button><button class="btn primary" onclick="saveProfile()">保存</button>`
+    : `<button class="btn" onclick="startProfileEdit()">编辑</button>`;
+
+  $('#content').innerHTML = `
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="page-title">用户画像</div>
+          <div class="page-sub">用户偏好和元数据。</div>
+        </div>
+        <div class="page-actions">${actions}</div>
+      </div>
+      <div class="grid grid-2">
+        <div>${jsonHtml}</div>
+        <div class="field-desc">
+          <div class="card-title">字段说明</div>
+          ${fieldDescs.map(f => `
+            <div class="fd-row">
+              <div class="fd-key">${esc(f.key)}</div>
+              <div class="fd-desc">${esc(f.desc)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function startProfileEdit() { profileEdit = true; drawProfile(); }
+function cancelProfileEdit() { profileEdit = false; drawProfile(); }
+async function saveProfile() {
+  try {
+    const txt = $('#profileEditArea').value;
+    profileData = JSON.parse(txt);
+    // Try to save via real API
+    try {
+      await fetch('/memory/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(profileData)
+      });
+      toast('画像已保存', 'success');
+    } catch (e) {
+      toast('画像已保存 (模拟)', 'success');
+    }
+    profileEdit = false;
+    drawProfile();
+  } catch (e) {
+    toast('JSON 格式错误: ' + e.message, 'error');
+  }
+}
+
+/* ============================================================
+ * Page: Orchestrate (Phase 2)
+ * ============================================================ */
+let orchestrateTab = 'workflows';
+let workflowsData = [];
+let triggersData = [];
+let executionsData = [];
+let localExecutions = {}; // wfId -> [execution,...] for newly created/run workflows
+const orchestrateState = {
+  selectedWorkflow: null,
+  selectedExecution: null,
+  execWorkflowId: '',
+  newWfName: '',
+  newWfDesc: '',
+  newWfSteps: [{ skill: '', args: '', depends_on: [] }],
+  newTrgWorkflowId: '',
+  newTrgType: 'cron',
+  newTrgConfig: { repo: '', label: '', schedule: '0 9 * * 1-5', secret: '' }
+};
+
+async function renderOrchestrate() {
+  const [workflows, triggers] = await Promise.all([api('/workflows'), api('/triggers')]);
+  workflowsData = Array.isArray(workflows) ? workflows : [];
+  triggersData = Array.isArray(triggers) ? triggers : [];
+  if (!orchestrateState.execWorkflowId && workflowsData.length) {
+    orchestrateState.execWorkflowId = workflowsData[0].id;
+  }
+  // Preload executions for the default selected workflow
+  await reloadExecutions();
+  drawOrchestrate();
+}
+
+async function reloadExecutions() {
+  const wfId = orchestrateState.execWorkflowId;
+  if (!wfId) { executionsData = []; return; }
+  const data = await api(`/workflows/${wfId}/executions`);
+  let execs = Array.isArray(data) ? data : [];
+  if (localExecutions[wfId]) execs = [...localExecutions[wfId], ...execs];
+  executionsData = execs;
+}
+
+function drawOrchestrate() {
+  const tabs = [
+    { id: 'workflows', label: '工作流', count: workflowsData.length },
+    { id: 'triggers', label: '触发器', count: triggersData.length },
+    { id: 'executions', label: '执行历史', count: executionsData.length }
+  ];
+
+  let body = '';
+  if (orchestrateTab === 'workflows') body = drawWorkflowsTab();
+  else if (orchestrateTab === 'triggers') body = drawTriggersTab();
+  else body = drawExecutionsTab();
+
+  $('#content').innerHTML = `
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="page-title">编排自动化</div>
+          <div class="page-sub">Phase 2 · 工作流编排、触发器管理与执行历史监控。</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn" onclick="renderOrchestrate()">↻ 刷新</button>
+        </div>
+      </div>
+      <div class="tabs">
+        ${tabs.map(t => `<button class="tab ${orchestrateTab === t.id ? 'active' : ''}" onclick="setOrchestrateTab('${t.id}')">${t.label} <span class="count">${t.count}</span></button>`).join('')}
+      </div>
+      ${body}
+    </div>
+  `;
+}
+
+function setOrchestrateTab(t) { orchestrateTab = t; drawOrchestrate(); }
+
+/* ----- Workflows tab ----- */
+function drawWorkflowsTab() {
+  const skillNames = (MOCK['/skills'] || []).map(s => s.name);
+  const builder = orchestrateState.newWfSteps.map((st, i) => {
+    const depOpts = orchestrateState.newWfSteps
+      .slice(0, i)
+      .map((_, j) => `step-${j + 1}`);
+    return `
+      <div class="step-builder wf">
+        <span class="wf-layer-label">step-${i + 1}</span>
+        <select class="select" onchange="updateWfStep(${i}, 'skill', this.value)">
+          <option value="">选择技能...</option>
+          ${skillNames.map(n => `<option value="${n}" ${st.skill === n ? 'selected' : ''}>${n}</option>`).join('')}
+        </select>
+        <input class="input" placeholder="参数 (可选)" value="${esc(st.args)}" oninput="updateWfStep(${i}, 'args', this.value)" />
+        <select class="select" multiple size="1" onchange="updateWfStepDeps(${i}, this)">
+          <option value="" ${st.depends_on.length === 0 ? 'selected' : ''}>(无依赖)</option>
+          ${depOpts.map(d => `<option value="${d}" ${st.depends_on.includes(d) ? 'selected' : ''}>${d}</option>`).join('')}
+        </select>
+        <span class="rm" onclick="removeWfStep(${i})" title="移除">✕</span>
+      </div>
+    `;
+  }).join('');
+
+  const detail = orchestrateState.selectedWorkflow ? renderWorkflowDetail(workflowsData.find(w => w.id === orchestrateState.selectedWorkflow)) : '';
+
+  const list = workflowsData.length ? workflowsData.map(w => `
+    <div class="task-card ${orchestrateState.selectedWorkflow === w.id ? 'selected' : ''}" onclick="selectWorkflow('${w.id}')">
+      <div class="top">
+        <span class="id">${esc(w.id)}</span>
+        ${Badge(w.steps.length + ' 步', 'gray')}
+        <span class="time">${fmtTime(w.created_at)}</span>
+      </div>
+      <div style="font-weight:600;font-size:13px;">${esc(w.name)}</div>
+      <div style="color:var(--text-2);font-size:12px;margin-top:4px;">${esc(w.description)}</div>
+      <div class="step-chain">
+        ${w.steps.map((s, i) => `<span class="step-pill">${esc(s.skill)}</span>${i < w.steps.length - 1 ? '<span class="step-arrow">→</span>' : ''}`).join('')}
+      </div>
+    </div>
+  `).join('') : EmptyState('∅', '暂无工作流，使用上方表单创建');
+
+  return `
+    <div class="grid grid-2-eq" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-title">新建工作流</div>
+        <div class="field">
+          <label>名称</label>
+          <input class="input" id="wfName" placeholder="例如 晨报生成" value="${esc(orchestrateState.newWfName)}" oninput="orchestrateState.newWfName = this.value" />
+        </div>
+        <div class="field">
+          <label>描述</label>
+          <input class="input" id="wfDesc" placeholder="工作流用途说明" value="${esc(orchestrateState.newWfDesc)}" oninput="orchestrateState.newWfDesc = this.value" />
+        </div>
+        <div class="field">
+          <label>步骤</label>
+          ${builder}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn" onclick="addWfStep()">+ 添加步骤</button>
+          <button class="btn primary" onclick="createWorkflow()">创建</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">工作流 <span class="actions">${workflowsData.length}</span></div>
+        ${list}
+      </div>
+    </div>
+    ${detail}
+  `;
+}
+
+/* Compute layered DAG layout via topological levels */
+function computeWfLayers(steps) {
+  const layerMap = {};
+  const remaining = [...steps];
+  const layers = [];
+  let guard = 0;
+  while (remaining.length && guard++ < 100) {
+    const layer = remaining.filter(s => (s.depends_on || []).every(d => layerMap[d] !== undefined));
+    if (!layer.length) {
+      // cycle or missing dep: dump rest as final layer
+      layers.push(remaining.slice());
+      remaining.forEach(s => layerMap[s.id] = layers.length - 1);
+      remaining.length = 0;
+      break;
+    }
+    layer.forEach(s => layerMap[s.id] = layers.length);
+    layers.push(layer);
+    layer.forEach(s => {
+      const idx = remaining.indexOf(s);
+      if (idx >= 0) remaining.splice(idx, 1);
+    });
+  }
+  return layers;
+}
+
+function renderWfDag(steps) {
+  if (!steps || !steps.length) return EmptyState('∅', '工作流没有步骤');
+  const layers = computeWfLayers(steps);
+  const cols = layers.map((layer, i) => {
+    const colNodes = layer.map(s => `
+      <div class="wf-node">
+        <div class="nid">${esc(s.id)}</div>
+        <div class="nsk">${esc(s.skill)}</div>
+        ${s.args ? `<div class="nargs">${esc(s.args)}</div>` : ''}
+      </div>
+    `).join('');
+    const arrow = i < layers.length - 1 ? '<div class="wf-arrow">→</div>' : '';
+    return `<div class="wf-col"><div class="wf-layer-label">L${i + 1}</div>${colNodes}</div>${arrow}`;
+  }).join('');
+  return `<div class="wf-dag">${cols}</div>`;
+}
+
+function renderWorkflowDetail(w) {
+  if (!w) return '';
+  return `
+    <div class="detail-panel">
+      <div class="detail-head">
+        <span class="title">${esc(w.name)} <span style="color:var(--text-3);font-size:11px;margin-left:8px;">${esc(w.id)}</span></span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="btn primary sm" onclick="executeWorkflow('${w.id}')">▶ 执行</button>
+          <button class="btn danger sm" onclick="deleteWorkflow('${w.id}')">删除</button>
+          <button class="icon-btn" onclick="selectWorkflow(null)">✕</button>
+        </div>
+      </div>
+      <div class="detail-body" style="grid-template-columns:1fr;">
+        <div class="kv" style="margin-bottom:14px;">
+          <span class="k">id</span><span class="v">${esc(w.id)}</span>
+          <span class="k">created_at</span><span class="v">${esc(w.created_at)}</span>
+          <span class="k">steps</span><span class="v">${w.steps.length}</span>
+          <span class="k">description</span><span class="v">${esc(w.description)}</span>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">DAG 流程</div>
+          ${renderWfDag(w.steps)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function selectWorkflow(id) {
+  orchestrateState.selectedWorkflow = (orchestrateState.selectedWorkflow === id || id === null) ? null : id;
+  drawOrchestrate();
+}
+function addWfStep() {
+  orchestrateState.newWfSteps.push({ skill: '', args: '', depends_on: [] });
+  drawOrchestrate();
+}
+function removeWfStep(i) {
+  orchestrateState.newWfSteps.splice(i, 1);
+  if (!orchestrateState.newWfSteps.length) orchestrateState.newWfSteps.push({ skill: '', args: '', depends_on: [] });
+  drawOrchestrate();
+}
+function updateWfStep(i, k, v) { orchestrateState.newWfSteps[i][k] = v; }
+function updateWfStepDeps(i, sel) {
+  const vals = Array.from(sel.selectedOptions).map(o => o.value).filter(Boolean);
+  orchestrateState.newWfSteps[i].depends_on = vals;
+}
+
+async function createWorkflow() {
+  const name = orchestrateState.newWfName.trim();
+  if (!name) { toast('请填写工作流名称', 'error'); return; }
+  const steps = orchestrateState.newWfSteps
+    .map((s, i) => ({ id: 'step-' + (i + 1), skill: s.skill, args: s.args, depends_on: s.depends_on.slice() }))
+    .filter(s => s.skill);
+  if (!steps.length) { toast('请至少添加一个包含技能的步骤', 'error'); return; }
+
+  const body = { name, description: orchestrateState.newWfDesc, steps };
+  try {
+    const res = await fetch('/workflows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      const wf = await res.json();
+      workflowsData.unshift(wf);
+      resetWfForm();
+      toast('工作流 ' + name + ' 已创建', 'success');
+      drawOrchestrate();
+      return;
+    }
+  } catch (e) { /* fall through */ }
+
+  // Mock creation
+  const id = 'wf-' + String(100 + workflowsData.length).padStart(3, '0');
+  const wf = { id, name, description: orchestrateState.newWfDesc, steps, created_at: new Date().toISOString() };
+  workflowsData.unshift(wf);
+  resetWfForm();
+  toast('工作流 ' + name + ' 已创建 (模拟)', 'success');
+  drawOrchestrate();
+}
+
+function resetWfForm() {
+  orchestrateState.newWfName = '';
+  orchestrateState.newWfDesc = '';
+  orchestrateState.newWfSteps = [{ skill: '', args: '', depends_on: [] }];
+}
+
+async function executeWorkflow(id) {
+  const wf = workflowsData.find(w => w.id === id);
+  if (!wf) return;
+  toast('工作流 ' + wf.name + ' 已触发执行', 'info');
+  try {
+    const res = await fetch(`/workflows/${id}/execute`, { method: 'POST', headers: authHeaders() });
+    if (res.ok) {
+      const exec = await res.json();
+      if (!localExecutions[id]) localExecutions[id] = [];
+      localExecutions[id].unshift(exec);
+      toast('工作流执行已启动: ' + (exec.id || id), 'success');
+      if (orchestrateState.execWorkflowId === id) { await reloadExecutions(); drawOrchestrate(); }
+      return;
+    }
+  } catch (e) { /* fall through */ }
+
+  // Mock execution
+  const execId = 'exec-' + Math.random().toString(36).slice(2, 7);
+  const exec = {
+    id: execId,
+    workflow_id: id,
+    status: 'COMPLETED',
+    started_at: new Date().toISOString(),
+    duration: wf.steps.reduce((a, s) => a + (0.5 + Math.random()), 0),
+    steps: wf.steps.map(s => ({
+      id: s.id, skill: s.skill, ok: true,
+      stdout: '[模拟输出] ' + s.skill + ' 执行成功',
+      stderr: '',
+      duration: 0.5 + Math.random()
+    }))
+  };
+  if (!localExecutions[id]) localExecutions[id] = [];
+  localExecutions[id].unshift(exec);
+  toast('工作流执行完成 (模拟): ' + execId, 'success');
+  if (orchestrateState.execWorkflowId === id) { await reloadExecutions(); drawOrchestrate(); }
+}
+
+async function deleteWorkflow(id) {
+  const wf = workflowsData.find(w => w.id === id);
+  if (!wf) return;
+  try {
+    const res = await fetch(`/workflows/${id}`, { method: 'DELETE', headers: authHeaders() });
+    if (res.ok) { /* ok */ }
+  } catch (e) { /* ignore */ }
+  workflowsData = workflowsData.filter(w => w.id !== id);
+  triggersData = triggersData.filter(t => t.workflow_id !== id);
+  if (orchestrateState.selectedWorkflow === id) orchestrateState.selectedWorkflow = null;
+  toast('工作流 ' + wf.name + ' 已删除', 'info');
+  drawOrchestrate();
+}
+
+/* ----- Triggers tab ----- */
+function drawTriggersTab() {
+  const typeBadge = { github: 'blue', cron: 'orange', webhook: 'green' };
+  const typeLabel = { github: 'GitHub', cron: '定时 cron', webhook: 'Webhook' };
+  const typeIcon = { github: '🐙', cron: '⏰', webhook: '🔗' };
+
+  const list = triggersData.length ? triggersData.map(t => {
+    const wf = workflowsData.find(w => w.id === t.workflow_id);
+    const cfgStr = t.type === 'github'
+      ? `repo=${t.config.repo} · label=${t.config.label}`
+      : t.type === 'cron'
+      ? `schedule="${t.config.schedule}"`
+      : `secret=${t.config.secret ? '***' : '(未设置)'}`;
+    return `
+      <div class="trigger-card">
+        <div class="tc-type">${Badge(typeLabel[t.type] || t.type, typeBadge[t.type] || 'gray', true)}</div>
+        <div class="tc-body">
+          <div class="tc-wf">${wf ? esc(wf.name) : esc(t.workflow_id)} <span style="color:var(--text-3);font-size:11px;">${esc(t.id)}</span></div>
+          <div class="tc-cfg">${esc(cfgStr)}</div>
+        </div>
+        <div class="toggle ${t.enabled ? 'on' : ''}" onclick="event.stopPropagation();toggleTrigger('${t.id}')" title="${t.enabled ? '已启用' : '已禁用'}"></div>
+        <button class="btn sm danger" onclick="deleteTrigger('${t.id}')">删除</button>
+      </div>
+    `;
+  }).join('') : EmptyState('∅', '暂无触发器');
+
+  // Config inputs based on type
+  let cfgHtml = '';
+  if (orchestrateState.newTrgType === 'github') {
+    cfgHtml = `
+      <div class="field"><label>仓库 (repo)</label><input class="input" placeholder="owner/repo" value="${esc(orchestrateState.newTrgConfig.repo)}" oninput="orchestrateState.newTrgConfig.repo = this.value" /></div>
+      <div class="field"><label>标签 (label)</label><input class="input" placeholder="review-ready" value="${esc(orchestrateState.newTrgConfig.label)}" oninput="orchestrateState.newTrgConfig.label = this.value" /></div>
+    `;
+  } else if (orchestrateState.newTrgType === 'cron') {
+    cfgHtml = `
+      <div class="field"><label>cron 表达式</label><input class="input" placeholder="0 9 * * 1-5" value="${esc(orchestrateState.newTrgConfig.schedule)}" oninput="orchestrateState.newTrgConfig.schedule = this.value" /></div>
+    `;
+  } else {
+    cfgHtml = `
+      <div class="field"><label>Webhook 密钥</label><input class="input" placeholder="webhook secret" value="${esc(orchestrateState.newTrgConfig.secret)}" oninput="orchestrateState.newTrgConfig.secret = this.value" /></div>
+    `;
+  }
+
+  return `
+    <div class="grid grid-2-eq">
+      <div class="card">
+        <div class="card-title">新建触发器</div>
+        <div class="field">
+          <label>工作流</label>
+          <select class="select" onchange="orchestrateState.newTrgWorkflowId = this.value">
+            <option value="">选择工作流...</option>
+            ${workflowsData.map(w => `<option value="${w.id}" ${orchestrateState.newTrgWorkflowId === w.id ? 'selected' : ''}>${esc(w.name)} (${w.id})</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>类型</label>
+          <div class="chips">
+            ${['github', 'cron', 'webhook'].map(t => `<button class="chip ${orchestrateState.newTrgType === t ? 'active' : ''}" onclick="setTrgType('${t}')">${typeLabel[t]}</button>`).join('')}
+          </div>
+        </div>
+        ${cfgHtml}
+        <button class="btn primary" onclick="createTrigger()">创建</button>
+      </div>
+      <div class="card">
+        <div class="card-title">触发器 <span class="actions">${triggersData.length}</span></div>
+        ${list}
+      </div>
+    </div>
+  `;
+}
+
+function setTrgType(t) {
+  orchestrateState.newTrgType = t;
+  drawOrchestrate();
+}
+
+async function createTrigger() {
+  const wfId = orchestrateState.newTrgWorkflowId;
+  if (!wfId) { toast('请选择工作流', 'error'); return; }
+  const type = orchestrateState.newTrgType;
+  let config = {};
+  if (type === 'github') {
+    if (!orchestrateState.newTrgConfig.repo) { toast('请填写 repo', 'error'); return; }
+    config = { repo: orchestrateState.newTrgConfig.repo, label: orchestrateState.newTrgConfig.label };
+  } else if (type === 'cron') {
+    if (!orchestrateState.newTrgConfig.schedule) { toast('请填写 cron 表达式', 'error'); return; }
+    config = { schedule: orchestrateState.newTrgConfig.schedule };
+  } else {
+    config = { secret: orchestrateState.newTrgConfig.secret };
+  }
+  const body = { workflow_id: wfId, type, config, enabled: true };
+
+  try {
+    const res = await fetch('/triggers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      const trg = await res.json();
+      triggersData.unshift(trg);
+      resetTrgForm();
+      toast('触发器已创建', 'success');
+      drawOrchestrate();
+      return;
+    }
+  } catch (e) { /* fall through */ }
+
+  const id = 'trg-' + String(100 + triggersData.length).padStart(3, '0');
+  triggersData.unshift({ id, ...body, created_at: new Date().toISOString() });
+  resetTrgForm();
+  toast('触发器已创建 (模拟)', 'success');
+  drawOrchestrate();
+}
+
+function resetTrgForm() {
+  orchestrateState.newTrgWorkflowId = '';
+  orchestrateState.newTrgType = 'cron';
+  orchestrateState.newTrgConfig = { repo: '', label: '', schedule: '0 9 * * 1-5', secret: '' };
+}
+
+async function toggleTrigger(id) {
+  const t = triggersData.find(x => x.id === id);
+  if (!t) return;
+  const next = !t.enabled;
+  try {
+    const res = await fetch(`/triggers/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ enabled: next })
+    });
+    if (res.ok) { t.enabled = next; drawOrchestrate(); toast('触发器已' + (next ? '启用' : '禁用'), 'info'); return; }
+  } catch (e) { /* fall through */ }
+  t.enabled = next;
+  drawOrchestrate();
+  toast('触发器已' + (next ? '启用' : '禁用') + ' (模拟)', 'info');
+}
+
+async function deleteTrigger(id) {
+  try {
+    await fetch(`/triggers/${id}`, { method: 'DELETE', headers: authHeaders() });
+  } catch (e) { /* ignore */ }
+  triggersData = triggersData.filter(t => t.id !== id);
+  toast('触发器已删除', 'info');
+  drawOrchestrate();
+}
+
+/* ----- Executions tab ----- */
+function drawExecutionsTab() {
+  const wfId = orchestrateState.execWorkflowId;
+  const wf = workflowsData.find(w => w.id === wfId);
+  const execs = executionsData;
+
+  const statusColor = { RUNNING: 'blue', COMPLETED: 'green', FAILED: 'red', PENDING: 'gray' };
+  const statusLabel = { RUNNING: '运行中', COMPLETED: '已完成', FAILED: '失败', PENDING: '等待中' };
+
+  const list = execs.length ? execs.map(e => `
+    <div class="task-card ${orchestrateState.selectedExecution === e.id ? 'selected' : ''}" onclick="selectExecution('${e.id}')">
+      <div class="top">
+        <span class="id">${esc(e.id)}</span>
+        ${Badge(statusLabel[e.status] || e.status, statusColor[e.status] || 'gray', true)}
+        <span class="time">${fmtTime(e.started_at)}</span>
+      </div>
+      <div class="step-chain">
+        <span class="step-pill">耗时 ${e.duration.toFixed(1)}s</span>
+        <span class="step-pill">${e.steps.length} 步</span>
+      </div>
+    </div>
+  `).join('') : EmptyState('∅', '该工作流暂无执行记录');
+
+  const detail = orchestrateState.selectedExecution ? renderExecutionDetail(execs.find(e => e.id === orchestrateState.selectedExecution)) : '';
+
+  return `
+    <div class="grid grid-2-eq" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="field" style="margin:0 0 12px;">
+          <label>选择工作流</label>
+          <select class="select" onchange="selectExecWorkflow(this.value)">
+            <option value="">-- 选择 --</option>
+            ${workflowsData.map(w => `<option value="${w.id}" ${wfId === w.id ? 'selected' : ''}>${esc(w.name)} (${w.id})</option>`).join('')}
+          </select>
+        </div>
+        ${wf ? `<div style="font-size:12px;color:var(--text-2);">已选: <span style="font-family:var(--mono);color:var(--text);">${esc(wf.name)}</span> · ${wf.steps.length} 步</div>` : ''}
+      </div>
+      <div class="card">
+        <div class="card-title">执行历史 <span class="actions">${execs.length}</span></div>
+        ${list}
+      </div>
+    </div>
+    ${detail}
+  `;
+}
+
+function renderExecutionDetail(e) {
+  if (!e) return '';
+  const statusColor = { RUNNING: 'blue', COMPLETED: 'green', FAILED: 'red', PENDING: 'gray' };
+  const statusLabel = { RUNNING: '运行中', COMPLETED: '已完成', FAILED: '失败', PENDING: '等待中' };
+  const steps = e.steps.map(s => `
+    <div class="exec-step">
+      <div class="es-head">
+        ${Badge(s.ok ? '✓ 成功' : '✕ 失败', s.ok ? 'green' : 'red', true)}
+        <span class="es-name">${esc(s.id)} · ${esc(s.skill)}</span>
+        <span class="es-dur">${s.duration.toFixed(2)}s</span>
+      </div>
+      ${s.stdout ? `<div class="es-out">${esc(s.stdout)}</div>` : ''}
+      ${s.stderr ? `<div class="es-out err">${esc(s.stderr)}</div>` : ''}
+    </div>
+  `).join('');
+
+  return `
+    <div class="detail-panel">
+      <div class="detail-head">
+        <span class="title">${esc(e.id)} <span style="color:var(--text-3);font-size:11px;margin-left:8px;">wf: ${esc(e.workflow_id)}</span></span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          ${Badge(statusLabel[e.status] || e.status, statusColor[e.status] || 'gray', true)}
+          <button class="icon-btn" onclick="selectExecution(null)">✕</button>
+        </div>
+      </div>
+      <div class="detail-body" style="grid-template-columns:1fr;">
+        <div class="kv" style="margin-bottom:14px;">
+          <span class="k">id</span><span class="v">${esc(e.id)}</span>
+          <span class="k">workflow_id</span><span class="v">${esc(e.workflow_id)}</span>
+          <span class="k">started_at</span><span class="v">${esc(e.started_at)}</span>
+          <span class="k">duration</span><span class="v">${e.duration.toFixed(2)}s</span>
+          <span class="k">status</span><span class="v">${esc(e.status)}</span>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">步骤执行结果</div>
+          ${steps || EmptyState('∅', '没有步骤结果')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function selectExecWorkflow(id) {
+  orchestrateState.execWorkflowId = id;
+  orchestrateState.selectedExecution = null;
+  await reloadExecutions();
+  drawOrchestrate();
+}
+function selectExecution(id) {
+  orchestrateState.selectedExecution = (orchestrateState.selectedExecution === id || id === null) ? null : id;
+  drawOrchestrate();
+}
+
+/* ============================================================
+ * Page: Hub (Phase 3)
+ * ============================================================ */
+let projectsData = [];
+let projectsSummary = {};
+let hubState = {
+  selectedProject: null,
+  newPrjName: '',
+  newPrjType: 'filesystem',
+  newPrjUrl: '',
+  newPrjToken: '',
+  syncAssetType: 'all'
+};
+
+async function renderHub() {
+  const [projects, summary] = await Promise.all([api('/projects'), api('/projects/summary')]);
+  projectsData = Array.isArray(projects) ? projects : [];
+  projectsSummary = summary && !summary.error ? summary : { total: 0, connected: 0, disconnected: 0, total_skills: 0, total_agents: 0, total_knowledge: 0 };
+  drawHub();
+}
+
+function drawHub() {
+  const typeIcon = { filesystem: '📁', github: '🐙', api: '🌐' };
+  const typeLabel = { filesystem: '本地文件系统', github: 'GitHub 仓库', api: '远程 API' };
+
+  /* Section 1: Projects */
+  const urlPlaceholder = {
+    filesystem: '~/.hermes/skills',
+    github: 'github.com/owner/repo',
+    api: 'https://api.example.com/hermes'
+  };
+  const prjForm = `
+    <div class="card">
+      <div class="card-title">接入项目</div>
+      <div class="field"><label>名称</label><input class="input" placeholder="例如 远程工作台" value="${esc(hubState.newPrjName)}" oninput="hubState.newPrjName = this.value" /></div>
+      <div class="field"><label>类型</label>
+        <div class="chips">
+          ${['filesystem', 'github', 'api'].map(t => `<button class="chip ${hubState.newPrjType === t ? 'active' : ''}" onclick="setPrjType('${t}')">${typeLabel[t]}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field"><label>URL</label><input class="input" placeholder="${urlPlaceholder[hubState.newPrjType]}" value="${esc(hubState.newPrjUrl)}" oninput="hubState.newPrjUrl = this.value" /></div>
+      ${hubState.newPrjType !== 'filesystem' ? `<div class="field"><label>令牌 (可选)</label><input class="input" type="password" placeholder="${hubState.newPrjType === 'github' ? 'ghp_...' : 'sk-...'}" value="${esc(hubState.newPrjToken)}" oninput="hubState.newPrjToken = this.value" /></div>` : ''}
+      <button class="btn primary" onclick="addProject()">接入</button>
+    </div>
+  `;
+
+  const prjList = projectsData.length ? projectsData.map(p => `
+    <div class="project-card" style="cursor:pointer;" onclick="selectProject('${p.id}')">
+      <div class="pc-status ${p.status}" title="${p.status}"></div>
+      <div style="font-size:18px;">${typeIcon[p.type] || '💾'}</div>
+      <div class="pc-body">
+        <div class="pc-name">${esc(p.name)} <span style="color:var(--text-3);font-size:11px;">${esc(p.id)}</span></div>
+        <div class="pc-meta">${Badge(typeLabel[p.type] || p.type, p.type === 'github' ? 'blue' : p.type === 'api' ? 'orange' : 'gray')} · ${p.skills_count} 技能 · ${p.agents_count} 智能体</div>
+      </div>
+      <div style="font-size:11px;color:var(--text-3);font-family:var(--mono);text-align:right;">
+        <div>${p.status === 'connected' ? '已连接' : p.status === 'error' ? '错误' : '已断开'}</div>
+        <div>同步 ${fmtTime(p.last_sync)}</div>
+      </div>
+    </div>
+  `).join('') : EmptyState('∅', '尚未接入任何项目');
+
+  /* Project detail */
+  const prjDetail = hubState.selectedProject ? renderProjectDetail(projectsData.find(p => p.id === hubState.selectedProject)) : '';
+
+  /* Section 2: Summary */
+  const pct = projectsSummary.total ? Math.round(projectsSummary.connected / projectsSummary.total * 100) : 0;
+  const summaryCards = [
+    { val: projectsSummary.total, label: '项目总数', ico: '📡' },
+    { val: projectsSummary.connected, label: '已连接', ico: '✓' },
+    { val: projectsSummary.total_skills, label: '总技能数', ico: '▤' },
+    { val: projectsSummary.total_agents, label: '总智能体数', ico: '🤖' }
+  ].map(s => `
+    <div class="card stat">
+      <div class="stat-top"><div class="stat-ico">${s.ico}</div></div>
+      <div class="stat-val">${s.val}</div>
+      <div class="stat-label">${s.label}</div>
+    </div>
+  `).join('');
+
+  /* Section 3: Cross-project operations */
+  const connectedProjects = projectsData.filter(p => p.status === 'connected');
+  const projectOpts = (sel) => connectedProjects.map(p => `<option value="${p.id}" ${sel === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+
+  const crossOps = `
+    <div class="card">
+      <div class="card-title">跨项目操作</div>
+      <div class="cross-ops">
+        <div class="op-row">
+          <span class="op-label">同步技能</span>
+          <select class="select" id="opSkillSrc"><option value="">源项目...</option>${projectOpts('')}</select>
+          <span class="op-arrow">→</span>
+          <select class="select" id="opSkillDst"><option value="">目标项目...</option>${projectOpts('')}</select>
+          <button class="btn primary" onclick="crossSyncSkills()">执行</button>
+        </div>
+        <div class="op-row">
+          <span class="op-label">同步记忆</span>
+          <select class="select" id="opMemSrc"><option value="">源项目...</option>${projectOpts('')}</select>
+          <span class="op-arrow">→</span>
+          <select class="select" disabled><option>本地</option></select>
+          <button class="btn primary" onclick="crossSyncMemory()">执行</button>
+        </div>
+        <div class="op-row single">
+          <span class="op-label">合并画像</span>
+          <span style="color:var(--text-2);font-size:12px;">从所有已连接项目 (${connectedProjects.length}) 合并用户画像至本地</span>
+          <button class="btn primary" onclick="crossMergeProfiles()">执行</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  $('#content').innerHTML = `
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="page-title">项目调度中心</div>
+          <div class="page-sub">Phase 3 · 多项目接入、资产同步与跨项目调度。</div>
+        </div>
+        <div class="page-actions">
+          <button class="btn" onclick="renderHub()">↻ 刷新</button>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin:8px 0 10px;">Section 1 · 接入项目</div>
+      <div class="grid grid-2-eq" style="margin-bottom:16px;">
+        ${prjForm}
+        <div class="card">
+          <div class="card-title">项目列表 <span class="actions">${projectsData.length}</span></div>
+          ${prjList}
+        </div>
+      </div>
+      ${prjDetail}
+
+      <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">Section 2 · 汇总统计</div>
+      <div class="grid grid-4" style="margin-bottom:16px;">${summaryCards}</div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">连接率</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="progress-bar" style="flex:1;"><div class="pb-fill" style="width:${pct}%"></div></div>
+          <span style="font-family:var(--mono);font-size:13px;color:var(--text);">${projectsSummary.connected}/${projectsSummary.total} (${pct}%)</span>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--text-2);">
+          知识文档总计 <span style="color:var(--text);font-family:var(--mono);">${projectsSummary.total_knowledge || 0}</span> ·
+          断开项目 <span style="color:var(--red);font-family:var(--mono);">${projectsSummary.disconnected || 0}</span>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin:8px 0 10px;">Section 3 · 跨项目操作</div>
+      ${crossOps}
+    </div>
+  `;
+}
+
+function renderProjectDetail(p) {
+  if (!p) return '';
+  const typeLabel = { filesystem: '本地文件系统', github: 'GitHub 仓库', api: '远程 API' };
+  return `
+    <div class="detail-panel">
+      <div class="detail-head">
+        <span class="title">${esc(p.name)} <span style="color:var(--text-3);font-size:11px;margin-left:8px;">${esc(p.id)}</span></span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          ${Badge(p.status, p.status === 'connected' ? 'green' : p.status === 'error' ? 'red' : 'gray', true)}
+          <button class="icon-btn" onclick="selectProject(null)">✕</button>
+        </div>
+      </div>
+      <div class="detail-body" style="grid-template-columns:1fr;">
+        <div class="kv" style="margin-bottom:14px;">
+          <span class="k">id</span><span class="v">${esc(p.id)}</span>
+          <span class="k">name</span><span class="v">${esc(p.name)}</span>
+          <span class="k">type</span><span class="v">${Badge(typeLabel[p.type] || p.type, p.type === 'github' ? 'blue' : p.type === 'api' ? 'orange' : 'gray')}</span>
+          <span class="k">url</span><span class="v">${esc(p.url)}</span>
+          <span class="k">token</span><span class="v">${p.token ? esc(p.token) : '—'}</span>
+          <span class="k">status</span><span class="v">${esc(p.status)}</span>
+          <span class="k">skills</span><span class="v">${p.skills_count}</span>
+          <span class="k">agents</span><span class="v">${p.agents_count}</span>
+          <span class="k">knowledge</span><span class="v">${p.knowledge_count || 0}</span>
+          <span class="k">last_sync</span><span class="v">${esc(p.last_sync)}</span>
+        </div>
+        <div class="project-detail-row">
+          <span style="font-size:12px;color:var(--text-2);">资产类型:</span>
+          <select class="select" style="width:auto;" id="syncAssetType_${p.id}" onchange="hubState.syncAssetType = this.value">
+            ${[['all', '全部'], ['skills', '技能'], ['memory', '记忆'], ['profile', '画像']].map(([v, l]) => `<option value="${v}" ${hubState.syncAssetType === v ? 'selected' : ''}>${l}</option>`).join('')}
+          </select>
+          <button class="btn primary sm" onclick="syncProjectAssets('${p.id}')">同步资产</button>
+          <button class="btn danger sm" onclick="disconnectProject('${p.id}')">断开</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setPrjType(t) { hubState.newPrjType = t; drawHub(); }
+function selectProject(id) {
+  hubState.selectedProject = (hubState.selectedProject === id || id === null) ? null : id;
+  drawHub();
+}
+
+async function addProject() {
+  const name = hubState.newPrjName.trim();
+  if (!name) { toast('请填写项目名称', 'error'); return; }
+  if (!hubState.newPrjUrl.trim()) { toast('请填写 URL', 'error'); return; }
+  const body = { name, type: hubState.newPrjType, url: hubState.newPrjUrl, token: hubState.newPrjToken || undefined };
+
+  try {
+    const res = await fetch('/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      const p = await res.json();
+      projectsData.unshift(p);
+      resetPrjForm();
+      toast('项目 ' + name + ' 已接入', 'success');
+      drawHub();
+      return;
+    }
+  } catch (e) { /* fall through */ }
+
+  const id = 'prj-' + String(100 + projectsData.length).padStart(3, '0');
+  projectsData.unshift({
+    id, name, type: hubState.newPrjType, url: hubState.newPrjUrl,
+    token: hubState.newPrjToken || '', status: 'connected',
+    skills_count: 0, agents_count: 0, knowledge_count: 0,
+    last_sync: new Date().toISOString()
+  });
+  resetPrjForm();
+  toast('项目 ' + name + ' 已接入 (模拟)', 'success');
+  drawHub();
+}
+
+function resetPrjForm() {
+  hubState.newPrjName = '';
+  hubState.newPrjType = 'filesystem';
+  hubState.newPrjUrl = '';
+  hubState.newPrjToken = '';
+}
+
+async function syncProjectAssets(id) {
+  const p = projectsData.find(x => x.id === id);
+  if (!p) return;
+  const assetType = hubState.syncAssetType;
+  const assetLabel = { all: '全部资产', skills: '技能', memory: '记忆', profile: '画像' }[assetType] || assetType;
+  toast('正在同步 ' + p.name + ' 的' + assetLabel + '...', 'info');
+  try {
+    const res = await fetch(`/projects/${id}/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ asset_type: assetType })
+    });
+    if (res.ok) {
+      const r = await res.json();
+      toast(`同步完成: ${r.synced || 0} 同步 / ${r.skipped || 0} 跳过 / ${r.errors || 0} 错误`, 'success');
+      p.last_sync = new Date().toISOString();
+      drawHub();
+      return;
+    }
+  } catch (e) { /* fall through */ }
+  // Mock sync result
+  const synced = 3 + Math.floor(Math.random() * 8);
+  const skipped = Math.floor(Math.random() * 3);
+  const errors = Math.floor(Math.random() * 2);
+  p.last_sync = new Date().toISOString();
+  if (assetType === 'all' || assetType === 'skills') p.skills_count += synced;
+  if (assetType === 'all' || assetType === 'memory') p.knowledge_count += Math.floor(synced / 2);
+  toast(`同步完成 (模拟): ${synced} 同步 / ${skipped} 跳过 / ${errors} 错误`, 'success');
+  drawHub();
+}
+
+async function disconnectProject(id) {
+  const p = projectsData.find(x => x.id === id);
+  if (!p) return;
+  try {
+    const res = await fetch(`/projects/${id}`, { method: 'DELETE', headers: authHeaders() });
+    if (res.ok) { /* ok */ }
+  } catch (e) { /* ignore */ }
+  projectsData = projectsData.filter(x => x.id !== id);
+  if (hubState.selectedProject === id) hubState.selectedProject = null;
+  toast('项目 ' + p.name + ' 已断开', 'info');
+  drawHub();
+}
+
+async function crossSyncSkills() {
+  const src = $('#opSkillSrc').value;
+  const dst = $('#opSkillDst').value;
+  if (!src || !dst) { toast('请选择源项目和目标项目', 'error'); return; }
+  if (src === dst) { toast('源和目标不能相同', 'error'); return; }
+  const srcP = projectsData.find(p => p.id === src);
+  const dstP = projectsData.find(p => p.id === dst);
+  try {
+    const res = await fetch('/projects/sync-skills', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ source: src, target: dst })
+    });
+    if (res.ok) {
+      const r = await res.json();
+      toast(`技能同步完成: ${r.synced} 同步 / ${r.skipped} 跳过 / ${r.errors} 错误`, 'success');
+      return;
+    }
+  } catch (e) { /* fall through */ }
+  const synced = Math.min(srcP ? srcP.skills_count : 0, 5 + Math.floor(Math.random() * 5));
+  const skipped = Math.floor(Math.random() * 3);
+  const errors = Math.floor(Math.random() * 2);
+  if (dstP) dstP.skills_count += synced;
+  toast(`技能同步完成 (模拟): ${synced} 同步 / ${skipped} 跳过 / ${errors} 错误`, 'success');
+  drawHub();
+}
+
+async function crossSyncMemory() {
+  const src = $('#opMemSrc').value;
+  if (!src) { toast('请选择源项目', 'error'); return; }
+  const srcP = projectsData.find(p => p.id === src);
+  try {
+    const res = await fetch('/projects/sync-memory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ source: src, target: 'local' })
+    });
+    if (res.ok) {
+      const r = await res.json();
+      toast(`记忆同步完成: ${r.synced} 同步 / ${r.skipped} 跳过 / ${r.errors} 错误`, 'success');
+      return;
+    }
+  } catch (e) { /* fall through */ }
+  const synced = 2 + Math.floor(Math.random() * 6);
+  const skipped = Math.floor(Math.random() * 3);
+  const errors = Math.floor(Math.random() * 2);
+  toast(`记忆同步完成 (模拟): ${synced} 同步 / ${skipped} 跳过 / ${errors} 错误`, 'success');
+}
+
+async function crossMergeProfiles() {
+  const connected = projectsData.filter(p => p.status === 'connected');
+  if (connected.length < 2) { toast('至少需要 2 个已连接项目才能合并', 'error'); return; }
+  try {
+    const res = await fetch('/projects/merge-profiles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ sources: connected.map(p => p.id) })
+    });
+    if (res.ok) {
+      const r = await res.json();
+      toast(`画像合并完成: ${r.synced} 合并 / ${r.skipped} 跳过 / ${r.errors} 错误`, 'success');
+      return;
+    }
+  } catch (e) { /* fall through */ }
+  const synced = connected.length;
+  const skipped = Math.floor(Math.random() * 2);
+  const errors = 0;
+  toast(`画像合并完成 (模拟): ${synced} 合并 / ${skipped} 跳过 / ${errors} 错误`, 'success');
+}
+
+/* ============================================================
+ * Coming Soon (Phase 2/3) — legacy modal helper (kept for back-compat)
+ * ============================================================ */
+function showComing(phase) {
+  if (phase === 'phase2') {
+    location.hash = '#/orchestrate';
+  } else if (phase === 'phase3') {
+    location.hash = '#/hub';
+  }
+}
+
+/* ============================================================
+ * Command Palette
+ * ============================================================ */
+const paletteCommands = [
+  { label: '概览', desc: '仪表盘首页', ico: '◈', route: 'overview' },
+  { label: '技能', desc: '浏览和运行技能', ico: '▤', route: 'skills' },
+  { label: '记忆', desc: '事实、事件、画像', ico: '⚡', route: 'memory' },
+  { label: '任务', desc: '调度和监控任务', ico: '☑', route: 'tasks' },
+  { label: '注册中心', desc: '数据源、智能体、知识文档', ico: '🔗', route: 'registry' },
+  { label: '用户画像', desc: '用户偏好设置', ico: '⚙', route: 'profile' },
+  { label: '编排自动化', desc: 'Phase 2 · 工作流、触发器、执行历史', ico: '🔀', route: 'orchestrate' },
+  { label: '项目调度中心', desc: 'Phase 3 · 多项目接入与跨项目同步', ico: '📡', route: 'hub' },
+  { label: '刷新', desc: '重新加载当前页面', ico: '↻', action: () => render(currentRoute) }
+];
+
+let paletteIdx = 0;
+function openPalette() {
+  $('#paletteRoot').classList.add('open');
+  $('#paletteInput').value = '';
+  paletteIdx = 0;
+  drawPalette('');
+  setTimeout(() => $('#paletteInput').focus(), 20);
+}
+function closePalette() { $('#paletteRoot').classList.remove('open'); }
+function drawPalette(q) {
+  q = q.toLowerCase();
+  const filtered = paletteCommands.filter(c => !q || c.label.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q));
+  if (!filtered.length) { $('#paletteList').innerHTML = `<div class="pal-empty">没有匹配的命令</div>`; return; }
+  if (paletteIdx >= filtered.length) paletteIdx = filtered.length - 1;
+  $('#paletteList').innerHTML = filtered.map((c, i) => `
+    <div class="pal-item ${i === paletteIdx ? 'active' : ''}" onclick="runPalette(${i})" data-idx="${i}">
+      <span class="ico">${c.ico}</span>
+      <span>${esc(c.label)}</span>
+      <span class="desc">${esc(c.desc)}</span>
+    </div>
+  `).join('');
+  // store filtered for runner
+  $('#paletteList').dataset.filtered = JSON.stringify(filtered.map(c => ({ label: c.label, route: c.route || null, hasAction: !!c.action })));
+}
+function runPalette(i) {
+  const data = JSON.parse($('#paletteList').dataset.filtered || '[]');
+  const c = data[i];
+  if (!c) return;
+  closePalette();
+  if (c.route) location.hash = '#/' + c.route;
+  else {
+    const cmd = paletteCommands.find(x => x.label === c.label);
+    if (cmd && cmd.action) cmd.action();
+  }
+}
+
+/* ============================================================
+ * Event wiring
+ * ============================================================ */
+document.addEventListener('click', (e) => {
+  const nav = e.target.closest('.nav-item');
+  if (nav) {
+    if (nav.dataset.route) { location.hash = '#/' + nav.dataset.route; }
+    else if (nav.dataset.coming) { showComing(nav.dataset.coming); }
+    return;
+  }
+});
+
+$('#modalClose').addEventListener('click', closeModal);
+$('#modalRoot').addEventListener('click', (e) => { if (e.target.id === 'modalRoot') closeModal(); });
+
+$('#paletteTrigger').addEventListener('click', openPalette);
+$('#paletteRoot').addEventListener('click', (e) => { if (e.target.id === 'paletteRoot') closePalette(); });
+$('#paletteInput').addEventListener('input', (e) => drawPalette(e.target.value));
+$('#paletteInput').addEventListener('keydown', (e) => {
+  const data = JSON.parse($('#paletteList').dataset.filtered || '[]');
+  if (e.key === 'ArrowDown') { e.preventDefault(); paletteIdx = Math.min(paletteIdx + 1, data.length - 1); drawPalette($('#paletteInput').value); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); paletteIdx = Math.max(paletteIdx - 1, 0); drawPalette($('#paletteInput').value); }
+  else if (e.key === 'Enter') { e.preventDefault(); runPalette(paletteIdx); }
+  else if (e.key === 'Escape') { closePalette(); }
+});
+
+$('#profileBtn').addEventListener('click', () => location.hash = '#/profile');
+$('#menuToggle').addEventListener('click', () => $('#sidebar').classList.toggle('open'));
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    if ($('#paletteRoot').classList.contains('open')) closePalette(); else openPalette();
+  }
+  if (e.key === 'Escape') {
+    if ($('#modalRoot').classList.contains('open')) closeModal();
+    if ($('#paletteRoot').classList.contains('open')) closePalette();
+  }
+});
+
+window.addEventListener('hashchange', router);
+
+/* ---------- Boot ---------- */
+if (!location.hash) location.hash = '#/overview';
+router();
+</script>
+</body>
+</html>

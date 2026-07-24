@@ -77,7 +77,7 @@ def _load_working_principles_from_doc() -> list[str]:
         stripped = line.lstrip()
         # Track fenced code blocks — inside ```/~~~ blocks, # lines are
         # comments, not markdown headings.
-        if stripped.startswith("```") or stripped.startswith("~~~"):
+        if stripped.startswith(("```", "~~~")):
             in_code_block = not in_code_block
             if current_title is not None:
                 current_body.append(line)

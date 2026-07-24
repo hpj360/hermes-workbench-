@@ -16,7 +16,6 @@ import http.client
 import json
 import logging
 import re
-import socket
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -174,7 +173,7 @@ class OpenClawClient:
             OSError,
             json.JSONDecodeError,
             http.client.HTTPException,  # BadStatusLine, IncompleteRead, RemoteDisconnected
-            socket.timeout,
+            TimeoutError,  # socket.timeout is alias for TimeoutError in 3.10+
         ) as exc:
             logger.debug("Gateway request failed: %s %s -> %s", method, path, exc)
             return None

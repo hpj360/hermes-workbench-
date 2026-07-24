@@ -25,8 +25,9 @@ import os
 import re
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from hermes.workbench.errors import AuthError, UpstreamError, ValidationError
 
@@ -44,7 +45,7 @@ def _default_executor(req: urllib.request.Request) -> bytes:
     is responsible for translating them into Workbench errors so that
     the same translation applies to mocked executors in tests.
     """
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return resp.read()
 
 

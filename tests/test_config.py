@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from hermes.config import Settings, get_settings
-from hermes.skills import discover_skills, list_knowledge_docs, skills_dir, knowledge_dir
+from hermes.skills import discover_skills, knowledge_dir, list_knowledge_docs, skills_dir
 
 
 def test_settings_defaults() -> None:

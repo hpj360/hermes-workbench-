@@ -10,9 +10,10 @@ from __future__ import annotations
 import time
 import uuid
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from hermes.workbench.persistence import (
     atomic_append_jsonl,
@@ -160,7 +161,7 @@ def _parse_episode_line(line: str) -> Episode:
     import json
     obj = json.loads(line)
     if not isinstance(obj, dict):
-        raise ValueError("episode line is not an object")
+        raise TypeError("episode line is not an object")
     details = obj.get("details", {})
     if not isinstance(details, dict):
         details = {"value": details}
