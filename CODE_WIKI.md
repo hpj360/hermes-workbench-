@@ -1,7 +1,7 @@
 # Hermes Code Wiki
 
-> 版本：对应 `pyproject.toml` 中 `hermes==0.2.0`（`manifest.json` 同为 `0.2.0`）
-> 生成时间：2026-07-24
+> 版本：对应 `pyproject.toml` 中 `hermes==0.3.0`（`manifest.json` 同为 `0.3.0`）
+> 生成时间：2026-07-25
 > 范围：`/workspace`（Hermes 独立 Python Agent 层 + Workbench 运行时 + 沉淀的 24 个 skills + 4 篇知识文档 + 内容创作素材）
 
 ---
@@ -61,7 +61,7 @@ Hermes 是一个**独立于主仓库（`/workspace/OpenClaw/openclaw-main`）的
 │                          ┌────────▼─────────┐                    │
 │                          │    server.py     │                    │
 │                          │ Dashboard HTTP   │                    │
-│                          │ API (15 路由)    │                    │
+│                          │ API (50 路由)    │                    │
 │                          └──────────────────┘                    │
 └──────────────────────────────────────────────────────────────────┘
                             │
@@ -100,14 +100,14 @@ Hermes 是一个**独立于主仓库（`/workspace/OpenClaw/openclaw-main`）的
 ```
 /workspace/
 ├── src/hermes/                    # 核心 Agent 层 + Workbench 运行时
-│   ├── __init__.py                # 包入口, __version__="0.2.0", 公开 API
+│   ├── __init__.py                # 包入口, __version__="0.3.0", 公开 API
 │   ├── config.py                  # 环境配置中枢 (Settings + 继承链)
 │   ├── logging.py                 # 结构化日志 setup_logging()
 │   ├── main.py                    # CLI argparse 入口 + 子命令分发
 │   ├── profile.py                 # 用户画像 JSON 读写 + Markdown 渲染
 │   ├── registry.py                # 统一注册中心 (跨本地+GitHub 多源)
 │   ├── skills.py                  # SkillInfo + discover_skills() + 知识发现
-│   └── workbench/                 # Workbench 运行时子包 (9 个 .py)
+│   └── workbench/                 # Workbench 运行时子包 (21 个 .py)
 │       ├── __init__.py
 │       ├── errors.py              # [P0] 错误层级 + HTTP 状态码映射
 │       ├── persistence.py         # [P0] 原子文件持久化原语
@@ -115,14 +115,22 @@ Hermes 是一个**独立于主仓库（`/workspace/OpenClaw/openclaw-main`）的
 │       ├── skill_runner.py        # [P1] Skill 发现/执行/脱敏
 │       ├── agent_loop.py          # [P1] 顺序 Agent 循环 + 记忆记录
 │       ├── cli.py                 # [P2] 任务运行时 + 17 子命令 + 服务工厂
-│       ├── server.py              # [P3] Dashboard HTTP API (44 路由)
+│       ├── server.py              # [P3] Dashboard HTTP API (50 路由)
 │       ├── github_sync.py         # [P4] GitHub Issues 同步层
 │       ├── workflow.py            # [P5] DAG 工作流模型 + 拓扑排序执行引擎
 │       ├── triggers.py            # [P5] GitHub/cron/webhook 触发器
+│       ├── trigger_engine.py      # [P5] 触发器执行引擎 (cron 调度 + webhook)
 │       ├── projects.py            # [P6] 多项目接入管理 (local/github/api)
 │       ├── sync.py                # [P6] 跨项目资产同步 (技能/记忆/画像)
-│       └── events.py              # [P7] SSE 事件总线 + 实时推送
-├── tests/                         # 测试 (259 个用例)
+│       ├── events.py              # [P7] SSE 事件总线 + 实时推送
+│       ├── audit.py               # [P7] 操作审计日志 (JSONL + 统计)
+│       ├── dashboard.py           # [P3] 单页 HTML Dashboard (静态资源)
+│       ├── llm.py                 # LLM provider 抽象
+│       ├── goal.py                # 目标管理
+│       ├── ima_sync.py            # IMA 同步
+│       ├── structured_logging.py  # 结构化日志扩展
+│       └── tracing.py             # Trace 追踪
+├── tests/                         # 测试 (470+ 个用例)
 │   ├── conftest.py                # reset_settings / tmp_state_dir fixtures
 │   ├── test_config.py             # 5
 │   ├── test_logging.py            # 9
@@ -130,15 +138,23 @@ Hermes 是一个**独立于主仓库（`/workspace/OpenClaw/openclaw-main`）的
 │   ├── test_profile.py            # 18
 │   ├── test_skills.py             # 11
 │   └── workbench/
+│       ├── conftest.py            # skills_dir fixture
 │       ├── test_agent_loop.py     # 12
 │       ├── test_cli.py            # 71
 │       ├── test_errors.py         # 12
 │       ├── test_github_sync.py    # 21
 │       ├── test_memory.py         # 21
 │       ├── test_persistence.py    # 13
-│       ├── test_server.py         # 75
+│       ├── test_server.py         # 75+
 │       ├── test_events.py         # 11
-│       └── test_skill_runner.py   # 30
+│       ├── test_skill_runner.py   # 30
+│       ├── test_workflow.py       # 29 (NEW v0.3.0)
+│       ├── test_triggers.py       # 19 (NEW v0.3.0)
+│       ├── test_trigger_engine.py # 27 (NEW v0.3.0)
+│       ├── test_projects.py       # 30 (NEW v0.3.0)
+│       ├── test_sync.py           # 17 (NEW v0.3.0)
+│       ├── test_audit.py          # 23 (NEW v0.3.0)
+│       └── test_dashboard.py      # 14 (NEW v0.3.0)
 ├── skills/                        # 24 个沉淀 skills
 ├── knowledge/                     # 4 篇知识文档
 ├── content-creation/              # 小红书 90 天冷启动内容素材
@@ -146,7 +162,7 @@ Hermes 是一个**独立于主仓库（`/workspace/OpenClaw/openclaw-main`）的
 ├── pyproject.toml                 # 项目元数据 + hermes script
 ├── requirements.txt               # 3 个运行时依赖
 ├── requirements-dev.txt           # 4 个开发依赖
-├── manifest.json                  # skills/knowledge 清单 (v0.2.0)
+├── manifest.json                  # skills/knowledge 清单 (v0.3.0)
 ├── README.md                      # 中文项目说明
 ├── CODE_WIKI.md                   # 本文档
 ├── .env.example                   # 环境变量模板
@@ -371,7 +387,7 @@ hermes workbench
 
 基于 `http.server.ThreadingHTTPServer` 的无状态 RESTful JSON API，所有状态经 `cli.py` 服务工厂流转。
 
-**路由表**（44 条，正则匹配 + 命名组）：
+**路由表**（50 条，正则匹配 + 命名组，v0.3.0 新增 audit 3 条）：
 
 | 方法 | 路径 | 处理函数 | 说明 |
 |------|------|---------|------|
@@ -416,7 +432,11 @@ hermes workbench
 | GET | `/projects/<prj_id>` | `h_get_project` | 项目详情 |
 | DELETE | `/projects/<prj_id>` | `h_delete_project` | 删除项目 |
 | POST | `/projects/<prj_id>/sync` | `h_post_project_sync` | 资产同步 |
+| GET | `/projects/<prj_id>/health` | `h_get_project_health` | 项目健康检测 |
 | GET | `/events` | `h_get_events` | SSE 实时事件流 |
+| GET | `/audit` | `h_get_audit` | 审计日志查询（?limit=&method=&path_prefix=&min_status=&max_status=） |
+| GET | `/audit/stats` | `h_get_audit_stats` | 审计统计摘要 |
+| DELETE | `/audit` | `h_delete_audit` | 清空审计日志 |
 
 **关键函数**：`make_server(host, port) -> ThreadingHTTPServer`、`run_server(host="127.0.0.1", port=8080)`
 
@@ -666,7 +686,7 @@ GITHUB_TOKEN=ghp_xxx hermes workbench github-sync --repo hpj360/Hermes
 import hermes
 
 # 核心 API
-hermes.__version__                      # "0.2.0"
+hermes.__version__                      # "0.3.0"
 hermes.get_settings()                   # Settings 单例
 hermes.discover_skills()                # list[SkillInfo]
 hermes.get_skill_path("weather")        # Path | None
@@ -696,13 +716,13 @@ print(loop_result.ok, loop_result.duration)
 
 ### 8.1 测试规模
 
-- **14 个测试文件，355 个测试用例**
+- **22 个测试文件，470+ 个测试用例**（v0.3.0 新增 7 个测试文件、159 个用例）
 - 顶层 93 个（config 5 / logging 9 / main 12 / profile 18 / skills 11 / registry 38）
-- Workbench 204 个（agent_loop 12 / cli 71 / errors 12 / github_sync 21 / memory 21 / persistence 13 / server 24 / skill_runner 30）
+- Workbench 380+ 个（agent_loop 12 / cli 71 / errors 12 / github_sync 21 / memory 21 / persistence 13 / server 75+ / skill_runner 30 / events 11 / **workflow 29 / triggers 19 / trigger_engine 27 / projects 30 / sync 17 / audit 23 / dashboard 14**）
 
 ### 8.2 模块覆盖率
 
-**14/14 模块均有对应测试，无缺失。**
+**21/21 模块均有对应测试，无缺失。**
 
 | 模块 | 测试文件 | 用例数 |
 |------|---------|--------|
@@ -718,8 +738,16 @@ print(loop_result.ok, loop_result.duration)
 | workbench/github_sync.py | test_github_sync.py | 21 |
 | workbench/memory.py | test_memory.py | 21 |
 | workbench/persistence.py | test_persistence.py | 13 |
-| workbench/server.py | test_server.py | 24 |
+| workbench/server.py | test_server.py | 75+ |
 | workbench/skill_runner.py | test_skill_runner.py | 30 |
+| workbench/events.py | test_events.py | 11 |
+| **workbench/workflow.py** (v0.3.0) | test_workflow.py | 29 |
+| **workbench/triggers.py** (v0.3.0) | test_triggers.py | 19 |
+| **workbench/trigger_engine.py** (v0.3.0) | test_trigger_engine.py | 27 |
+| **workbench/projects.py** (v0.3.0) | test_projects.py | 30 |
+| **workbench/sync.py** (v0.3.0) | test_sync.py | 17 |
+| **workbench/audit.py** (v0.3.0) | test_audit.py | 23 |
+| **workbench/dashboard.py** (v0.3.0) | test_dashboard.py | 14 |
 
 ### 8.3 测试隔离
 
@@ -731,9 +759,9 @@ print(loop_result.ok, loop_result.duration)
 ### 8.4 运行测试
 
 ```bash
-pytest tests/                          # 全部 259 个
-pytest tests/workbench/                # Workbench 204 个
-pytest tests/workbench/test_github_sync.py -v  # 单个文件
+pytest tests/                          # 全部 470+ 个
+pytest tests/workbench/                # Workbench 380+ 个
+pytest tests/workbench/test_workflow.py -v  # 单个文件
 ruff check src/hermes/ tests/          # lint
 mypy src/hermes/                       # 类型检查
 ```
@@ -849,16 +877,17 @@ hpj360 账号下共 7 个仓库：
 
 ### 10.2 构建验证
 
-- **测试**：259 个用例全部通过（`pytest tests/` 14.11s）
+- **测试**：470+ 个用例全部通过（`pytest tests/` ~ 2s，v0.3.0 新增 159 个）
 - **Lint**：ruff 零错误（`ruff check src/hermes/ tests/`）
-- **模块完整性**：13/13 模块均有对应测试，无缺失
+- **模块完整性**：21/21 模块均有对应测试，无缺失
 - **状态文件**：`.state/`、`.cache/` 不存在（未运行过持久化任务）；`data/profile.json` 不存在（仅有 `profile.example.json` 模板）
 
 ### 10.3 已知问题
 
-1. `CODE_WIKI.md`（本次前）记载 `manifest.json` 版本为 `0.1.0`，实际已升级到 `0.2.0` —— 本文档已修正。
+1. `CODE_WIKI.md` 历史版本记载 `manifest.json` 版本为 `0.1.0`，后修正至 `0.2.0`，本次 v0.3.0 升级同步更新到 `0.3.0`。
 2. 远端 `hermes-workbench-` 仓库的 `main` 分支为单提交快照，丢失 4 次历史提交记录（代码内容无缺失），因 GitHub 服务端幽灵对象 `0d48573b` 导致 `index-pack` 失败。
 3. `skills/stock-analysis/scripts/test_stock_analysis.py` 依赖 `pandas`，未安装时全仓 `pytest` 收集会失败 —— 需限定 `pytest tests/` 范围或安装 pandas。
+4. 前端 `prototype/index.html` 此前 `routes` 数组未包含 `audit`，导致直接访问 `#/audit` 路由会被重定向到 `overview` —— v0.3.0 已修复（路由数组补齐 `audit`）。
 
 ### 10.4 Workbench 分阶段交付状态
 
@@ -867,8 +896,12 @@ hpj360 账号下共 7 个仓库：
 | P0 | errors.py / persistence.py | ✅ 完成 | 25 用例 |
 | P1 | memory.py / skill_runner.py / agent_loop.py | ✅ 完成 | 63 用例 |
 | P2 | cli.py（任务运行时 + 17 子命令） | ✅ 完成 | 71 用例 |
-| P3 | server.py（Dashboard HTTP API） | ✅ 完成 | 24 用例 |
+| P3 | server.py（Dashboard HTTP API）+ dashboard.py | ✅ 完成 | 89+ 用例 |
 | P4 | github_sync.py（GitHub Issues 同步） | ✅ 完成 | 21 用例 |
+| P5 | workflow.py + triggers.py + trigger_engine.py（DAG 编排 + 触发器） | ✅ 完成 (v0.3.0) | 75 用例 |
+| P6 | projects.py + sync.py（多项目接入 + 资产同步） | ✅ 完成 (v0.3.0) | 47 用例 |
+| P7 | events.py + audit.py（SSE 事件 + 操作审计） | ✅ 完成 (v0.3.0) | 34 用例 |
+| Phase 3 | 跨项目调度中心（路由/队列/编排） | 🚧 待启动 | — |
 
 ---
 

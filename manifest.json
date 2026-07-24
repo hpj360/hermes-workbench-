@@ -1,6 +1,6 @@
 {
   "name": "hermes",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "main_repo_path": "/workspace/OpenClaw/openclaw-main",
   "inherited_from": [
     "/workspace/.trae/skills",
