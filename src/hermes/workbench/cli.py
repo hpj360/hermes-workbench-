@@ -23,6 +23,7 @@ from hermes.workbench.memory import MemoryService
 from hermes.workbench.projects import ProjectRegistry
 from hermes.workbench.skill_runner import SkillRunner
 from hermes.workbench.sync import AssetSync
+from hermes.workbench.trigger_engine import TriggerEngine
 from hermes.workbench.triggers import TriggerStore
 from hermes.workbench.workflow import WorkflowRunner, WorkflowStore
 
@@ -283,6 +284,36 @@ def _make_asset_sync() -> AssetSync:
         runner=_make_runner(),
         memory=_make_memory(),
     )
+
+
+_trigger_engine: TriggerEngine | None = None
+
+
+def _make_trigger_engine() -> TriggerEngine:
+    """触发器执行引擎工厂（单例，自动启动 cron 调度）。"""
+    global _trigger_engine
+    if _trigger_engine is None:
+        _trigger_engine = TriggerEngine(
+            trigger_store=_make_trigger_store(),
+            workflow_store=_make_workflow_store(),
+            workflow_runner=_make_workflow_runner(),
+        )
+        _trigger_engine.start()
+    return _trigger_engine
+
+
+def _reset_trigger_engine() -> None:
+    """重置触发器引擎单例（用于测试隔离）。"""
+    global _trigger_engine
+    if _trigger_engine is not None:
+        _trigger_engine.stop()
+        _trigger_engine = None
+
+
+def _make_audit_log():
+    """审计日志工厂（单例）。"""
+    from hermes.workbench.audit import init_audit_log
+    return init_audit_log(_state_dir())
 
 
 # ---------------------------------------------------------------------------

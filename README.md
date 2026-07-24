@@ -80,11 +80,53 @@ hermes --log-file logs/hermes.log  # 同时输出到文件
 ## Docker 部署
 
 ```bash
+# 方式一：docker run
 docker build -t hermes-workbench .
 docker run -p 8000:8000 -e HERMES_API_TOKEN=your-secret hermes-workbench
+
+# 方式二：docker compose（推荐，自动持久化状态）
+docker compose up --build
 ```
 
 Dashboard API 默认监听 8000 端口，`/health` 端点免认证。设置 `HERMES_API_TOKEN` 后，其余端点需 `Authorization: Bearer <token>` 认证。
+
+## Workbench Dashboard
+
+Workbench 提供完整的 HTTP Dashboard API 与单页前端（`prototype/index.html`），覆盖三阶段能力：
+
+### Phase 1 · 统一管理
+- **概览仪表盘**：providers、skills 就绪数、记忆层级概览
+- **技能管理**：发现、搜索、运行（含依赖预检）
+- **记忆管理**：L1 facts / L2 episodes / L3 profile 读写
+- **任务管理**：注册、运行（含 recurring 模式）、取消
+- **注册中心**：skills / agents / knowledge / user 统一视图
+- **用户画像**：查看与编辑
+
+### Phase 2 · 编排自动化
+- **工作流引擎**：DAG 拓扑排序，支持步骤依赖与并行执行
+- **触发器管理**：GitHub（PR/Issue）、Cron 定时、Webhook 三类触发器
+- **执行监控**：实时查看工作流执行历史与步骤状态
+- **SSE 实时推送**：`GET /events` 端点推送工作流执行进度，前端自动更新
+
+### Phase 3 · 多项目调度
+- **项目接入**：local / github / api 三类项目注册管理
+- **跨项目同步**：技能、记忆、用户画像的资产同步
+- **项目汇总**：连接状态、技能数、资产统计
+
+### API 端点概览
+
+| 类别 | 端点 | 说明 |
+|------|------|------|
+| 基础 | `GET /health` | 健康检查（免认证） |
+| 技能 | `GET/POST /skills` | 列表 / 运行 |
+| 记忆 | `GET/POST/PUT/DELETE /memory/*` | facts / episodes / profile |
+| 任务 | `GET/POST /tasks` | 注册 / 运行 / 取消 |
+| 搜索 | `GET /search?q=` | 全局搜索 skills / facts / tasks |
+| 工作流 | `GET/POST/PUT/DELETE /workflows` | CRUD + 执行 + 历史 |
+| 触发器 | `GET/POST/DELETE/PATCH /triggers` | CRUD + 启停 |
+| 项目 | `GET/POST/DELETE /projects` | CRUD + 汇总 + 同步 |
+| 实时 | `GET /events` | SSE 事件流 |
+
 
 ## 快速开始
 

@@ -66,6 +66,8 @@ _ROUTES: list[tuple[str, str, str]] = [
     ("POST", r"^/triggers$", "h_post_triggers"),
     ("DELETE", r"^/triggers/(?P<tr_id>[^/]+)$", "h_delete_trigger"),
     ("PATCH", r"^/triggers/(?P<tr_id>[^/]+)$", "h_patch_trigger"),
+    ("POST", r"^/triggers/(?P<tr_id>[^/]+)/fire$", "h_post_trigger_fire"),
+    ("POST", r"^/webhooks/(?P<tr_id>[^/]+)$", "h_post_webhook"),
     # Phase 3: projects & sync
     ("GET", r"^/projects$", "h_get_projects"),
     ("POST", r"^/projects$", "h_post_projects"),
@@ -73,6 +75,13 @@ _ROUTES: list[tuple[str, str, str]] = [
     ("GET", r"^/projects/(?P<prj_id>[^/]+)$", "h_get_project"),
     ("DELETE", r"^/projects/(?P<prj_id>[^/]+)$", "h_delete_project"),
     ("POST", r"^/projects/(?P<prj_id>[^/]+)/sync$", "h_post_project_sync"),
+    ("GET", r"^/projects/(?P<prj_id>[^/]+)/health$", "h_get_project_health"),
+    # SSE: real-time event stream
+    ("GET", r"^/events$", "h_get_events"),
+    # Audit log
+    ("GET", r"^/audit$", "h_get_audit"),
+    ("GET", r"^/audit/stats$", "h_get_audit_stats"),
+    ("DELETE", r"^/audit$", "h_delete_audit"),
 ]
 
 # Paths exempt from authentication (public endpoints).
@@ -106,11 +115,33 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self._dispatch("PATCH")
 
     def _dispatch(self, method: str) -> None:
+        import time as _time
         path = urlsplit(self.path).path
+        start_ts = _time.time()
+        self._audit_status = 200
+        self._audit_error = None
+
+        def _record_audit(status: int, error: str | None = None) -> None:
+            from hermes.workbench.audit import AuditEntry, get_audit_log
+            audit = get_audit_log()
+            if audit is None:
+                return
+            entry = AuditEntry(
+                method=method,
+                path=path,
+                status=status,
+                duration_ms=round((_time.time() - start_ts) * 1000, 1),
+                client_ip=self.client_address[0] if self.client_address else "",
+                user_agent=self.headers.get("User-Agent", ""),
+                error=error,
+            )
+            audit.record(entry)
+
         # Auth: public endpoints are exempt. When HERMES_API_TOKEN is set,
         # every other endpoint requires an ``Authorization: Bearer <token>`` header.
         if path not in _AUTH_EXEMPT_PATHS and not self._check_auth():
             self._send_json(401, {"error": "unauthorized", "type": "AuthError"})
+            _record_audit(401, "unauthorized")
             return
         for route_method, pattern, handler_name in _ROUTES:
             if route_method != method:
@@ -120,21 +151,28 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 handler = getattr(self, handler_name)
                 try:
                     handler(**match.groupdict())
+                    _record_audit(self._audit_status, self._audit_error)
                 except WorkbenchError as e:
-                    self._send_json(status_code_for(e), {"error": str(e), "type": type(e).__name__})
+                    status = status_code_for(e)
+                    self._send_json(status, {"error": str(e), "type": type(e).__name__})
+                    _record_audit(status, str(e))
                 except Exception as e:  # noqa: BLE001 - boundary
                     self._send_json(500, {"error": str(e), "type": type(e).__name__})
+                    _record_audit(500, str(e))
                 return
         # No route matched: 405 if path matches another method, else 404.
         for _m, pattern, _h in _ROUTES:
             if re.match(pattern, path):
                 self._method_not_allowed()
+                _record_audit(405, "method not allowed")
                 return
         self._send_json(404, {"error": "not found", "path": path})
+        _record_audit(404, "not found")
 
     # Helpers ------------------------------------------------------------
 
     def _send_json(self, status: int, obj: Any) -> None:
+        self._audit_status = status
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -685,6 +723,35 @@ class DashboardHandler(BaseHTTPRequestHandler):
             raise NotFoundError(f"trigger not found: {tr_id}")
         self._send_json(200, trigger.to_dict())
 
+    def h_post_trigger_fire(self, tr_id: str) -> None:
+        """手动触发指定触发器关联的工作流。"""
+        from hermes.workbench.cli import _make_trigger_engine
+        engine = _make_trigger_engine()
+        result = engine.fire(tr_id)
+        if result is None:
+            raise NotFoundError(f"trigger not found: {tr_id}")
+        if "error" in result:
+            raise NotFoundError(result["error"])
+        self._send_json(200, result)
+
+    def h_post_webhook(self, tr_id: str) -> None:
+        """接收外部 webhook 请求并触发对应工作流。
+
+        可通过 ``X-Webhook-Secret`` 头传递密钥进行验证。
+        """
+        from hermes.workbench.cli import _make_trigger_engine
+        body = self._read_json_body()
+        if not isinstance(body, dict):
+            body = {}
+        signature = self.headers.get("X-Webhook-Secret", "")
+        engine = _make_trigger_engine()
+        result = engine.fire_by_webhook(tr_id, body, signature)
+        if result is None:
+            raise NotFoundError(f"trigger not found or not a webhook trigger: {tr_id}")
+        if "error" in result:
+            raise ValidationError(result["error"])
+        self._send_json(200, result)
+
     # Phase 3: projects --------------------------------------------------
 
     def h_get_projects(self) -> None:
@@ -753,6 +820,94 @@ class DashboardHandler(BaseHTTPRequestHandler):
             results = sync.sync_all(prj_id, "local")
 
         self._send_json(200, {"results": [r.to_dict() for r in results], "ok": all(r.ok for r in results)})
+
+    def h_get_project_health(self, prj_id: str) -> None:
+        """GET /projects/<id>/health 检测项目连接健康状态。"""
+        from hermes.workbench.cli import _make_project_registry
+        result = _make_project_registry().ping(prj_id)
+        if result.get("error") == "not found":
+            raise NotFoundError(f"project not found: {prj_id}")
+        self._send_json(200, result)
+
+    # SSE: events --------------------------------------------------------
+
+    def h_get_events(self) -> None:
+        """SSE 端点：推送实时事件流到客户端。
+
+        支持 ``Last-Event-ID`` 头用于断线重连。事件类型包括：
+        - ``workflow.started`` / ``workflow.step.completed`` / ``workflow.completed``
+        - ``task.created`` / ``task.completed``
+        - ``heartbeat`` (30s 保活)
+        """
+        from hermes.workbench.events import get_event_broker
+
+        last_event_id = self.headers.get("Last-Event-ID", "")
+        broker = get_event_broker()
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+
+        # 发送初始连接确认事件
+        try:
+            self.wfile.write(
+                f"event: connected\ndata: {{\"subscriber_count\": {broker.subscriber_count}}}\n\n".encode()
+            )
+            self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            return
+
+        # 订阅事件流并转发
+        try:
+            for event in broker.subscribe(last_event_id):
+                try:
+                    self.wfile.write(event.to_sse().encode("utf-8"))
+                    self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError):
+                    break
+        except Exception:  # noqa: BLE001, S110 - SSE 连接可能因多种原因断开
+            pass
+
+    # audit log ----------------------------------------------------------
+
+    def h_get_audit(self) -> None:
+        """GET /audit 查询审计日志。支持 ?limit/method/path/min_status/max_status。"""
+        from hermes.workbench.audit import get_audit_log
+        audit = get_audit_log()
+        if audit is None:
+            self._send_json(200, {"entries": [], "total": 0})
+            return
+        params = self._query_params()
+        entries = audit.query(
+            limit=int(params.get("limit", "50")),
+            method=params.get("method"),
+            path_prefix=params.get("path"),
+            min_status=int(params["min_status"]) if "min_status" in params else None,
+            max_status=int(params["max_status"]) if "max_status" in params else None,
+        )
+        self._send_json(200, {"entries": entries, "total": len(entries)})
+
+    def h_get_audit_stats(self) -> None:
+        """GET /audit/stats 审计统计摘要。"""
+        from hermes.workbench.audit import get_audit_log
+        audit = get_audit_log()
+        if audit is None:
+            self._send_json(200, {"total": 0, "errors": 0, "avg_duration_ms": 0})
+            return
+        self._send_json(200, audit.stats())
+
+    def h_delete_audit(self) -> None:
+        """DELETE /audit 清空审计日志。"""
+        from hermes.workbench.audit import get_audit_log
+        audit = get_audit_log()
+        if audit is None:
+            self._send_json(200, {"cleared": 0})
+            return
+        count = audit.clear()
+        self._send_json(200, {"cleared": count})
 
     # static files -------------------------------------------------------
 

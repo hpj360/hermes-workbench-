@@ -249,6 +249,9 @@ class WorkflowRunner:
 
     def execute(self, wf: Workflow, timeout: float | None = None) -> Execution:
         """执行工作流，返回执行记录。"""
+        from hermes.workbench.events import get_event_broker
+
+        broker = get_event_broker()
         exec_id = f"ex-{uuid.uuid4().hex[:8]}"
         execution = Execution(
             id=exec_id,
@@ -256,22 +259,54 @@ class WorkflowRunner:
             workflow_name=wf.name,
         )
 
+        # 发布工作流启动事件
+        broker.publish("workflow.started", {
+            "execution_id": exec_id,
+            "workflow_id": wf.id,
+            "workflow_name": wf.name,
+            "total_steps": len(wf.steps),
+        })
+
         layers = self._topo_sort(wf.steps)
 
         for layer in layers:
             for step in layer:
                 result = self._run_step(step, timeout)
                 execution.step_results.append(result)
+                # 发布步骤完成事件
+                broker.publish("workflow.step.completed", {
+                    "execution_id": exec_id,
+                    "workflow_id": wf.id,
+                    "step_id": step.id,
+                    "skill": step.skill,
+                    "ok": result.ok,
+                    "duration": result.duration,
+                    "error": result.error,
+                })
                 if not result.ok:
                     execution.status = "FAILED"
                     execution.error = f"步骤 {step.id} ({step.skill}) 执行失败"
                     execution.ended_at = time.time()
                     self._log_execution(execution)
+                    broker.publish("workflow.completed", {
+                        "execution_id": exec_id,
+                        "workflow_id": wf.id,
+                        "status": "FAILED",
+                        "error": execution.error,
+                        "duration": execution.duration,
+                    })
                     return execution
 
         execution.status = "COMPLETED"
         execution.ended_at = time.time()
         self._log_execution(execution)
+        broker.publish("workflow.completed", {
+            "execution_id": exec_id,
+            "workflow_id": wf.id,
+            "status": "COMPLETED",
+            "duration": execution.duration,
+            "steps_completed": len(execution.step_results),
+        })
         return execution
 
     def _run_step(self, step: WorkflowStep, default_timeout: float | None = None) -> StepResult:

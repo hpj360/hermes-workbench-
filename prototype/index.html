@@ -92,6 +92,9 @@
     box-shadow: 0 0 8px rgba(16,185,129,0.6);
   }
   .conn.demo .dot { background: var(--orange); box-shadow: 0 0 8px rgba(245,158,11,0.6); }
+  .conn.live .dot { background: var(--green); box-shadow: 0 0 8px rgba(16,185,129,0.6); animation: pulse 2s infinite; }
+  .conn.error .dot { background: var(--red); box-shadow: 0 0 8px rgba(239,68,68,0.6); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
   .kbd {
     display: flex; align-items: center; gap: 4px;
     padding: 4px 8px;
@@ -1068,7 +1071,9 @@
       <div class="nav-section">Phase 3</div>
       <div class="nav-item" data-route="hub"><span class="ico">📡</span> 项目调度中心 <span class="tag">Phase 3</span></div>
 
-      <div class="nav-section" style="margin-top:auto;">账户</div>
+      <div class="nav-section" style="margin-top:auto;">系统</div>
+      <div class="nav-item" data-route="audit"><span class="ico">📋</span> 审计日志</div>
+      <div class="nav-section">账户</div>
       <div class="nav-item" data-route="profile"><span class="ico">⚙</span> 用户画像</div>
     </aside>
 
@@ -1450,6 +1455,21 @@ const MOCK = {
     total_skills: 25,
     total_agents: 6,
     total_knowledge: 14
+  },
+  '/audit': {
+    entries: [
+      { id: 'a1', timestamp: Date.now()/1000 - 5, method: 'GET', path: '/health', status: 200, duration_ms: 2.1, client_ip: '127.0.0.1', error: null },
+      { id: 'a2', timestamp: Date.now()/1000 - 12, method: 'GET', path: '/skills', status: 200, duration_ms: 15.3, client_ip: '127.0.0.1', error: null },
+      { id: 'a3', timestamp: Date.now()/1000 - 30, method: 'POST', path: '/workflows/wf-demo/execute', status: 200, duration_ms: 320.5, client_ip: '127.0.0.1', error: null },
+      { id: 'a4', timestamp: Date.now()/1000 - 60, method: 'GET', path: '/nonexistent', status: 404, duration_ms: 1.2, client_ip: '127.0.0.1', error: 'not found' }
+    ],
+    total: 4
+  },
+  '/audit/stats': {
+    total: 128,
+    errors: 12,
+    error_rate: 0.094,
+    avg_duration_ms: 45.2
   }
 };
 
@@ -1460,19 +1480,26 @@ function authHeaders() {
   if (token) h['Authorization'] = 'Bearer ' + token;
   return h;
 }
-async function api(path) {
-  if (DEMO_MODE) {
+async function api(path, opts = {}) {
+  const method = (opts.method || 'GET').toUpperCase();
+  if (DEMO_MODE && method === 'GET') {
     await new Promise(r => setTimeout(r, 280 + Math.random() * 220)); // simulate latency
     const d = MOCK[path];
     if (d === undefined) return { error: 'no mock', demo: true };
     return JSON.parse(JSON.stringify(d));
   }
   try {
-    const res = await fetch(path, { headers: authHeaders() });
-    if (!res.ok) throw res;
+    const fetchOpts = { method, headers: { 'Content-Type': 'application/json', ...authHeaders() } };
+    if (opts.body !== undefined) fetchOpts.body = JSON.stringify(opts.body);
+    const res = await fetch(path, fetchOpts);
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      throw new Error(errBody.error || `HTTP ${res.status}`);
+    }
     const data = await res.json();
     return normalizeApiResponse(path, data);
   } catch (e) {
+    if (method !== 'GET') throw e; // POST/PUT/DELETE 不回退 mock
     const mock = MOCK[path];
     if (mock !== undefined) return JSON.parse(JSON.stringify(mock));
     return { error: 'offline', demo: true };
@@ -1510,6 +1537,15 @@ function ErrorState(message, retry) {
 }
 function Card(title, contentHtml, actionsHtml = '') {
   return `<div class="card"><div class="card-title">${esc(title)}<span class="actions">${actionsHtml}</span></div>${contentHtml}</div>`;
+}
+
+/* 防抖：延迟执行频繁调用的函数 */
+const _debounceTimers = {};
+function debounce(fn, delay = 200, key = fn.name || 'default') {
+  return function(...args) {
+    if (_debounceTimers[key]) clearTimeout(_debounceTimers[key]);
+    _debounceTimers[key] = setTimeout(() => { fn.apply(null, args); delete _debounceTimers[key]; }, delay);
+  };
 }
 
 function toast(message, type = 'info') {
@@ -1576,6 +1612,7 @@ async function render(route) {
       case 'profile': await renderProfile(); break;
       case 'orchestrate': await renderOrchestrate(); break;
       case 'hub': await renderHub(); break;
+      case 'audit': await renderAudit(); break;
     }
   } catch (e) {
     content.innerHTML = `<div class="page">${ErrorState('加载失败: ' + e.message, 'render(\''+route+'\')')}</div>`;
@@ -1733,7 +1770,7 @@ function drawSkills() {
   `;
 }
 
-function onSkillSearch(v) { skillsFilter.q = v; drawSkills(); }
+function onSkillSearch(v) { skillsFilter.q = v; debounce(drawSkills, 200)(); }
 function setSkillRuntime(r) { skillsFilter.runtime = r; drawSkills(); }
 function selectSkill(name) { skillsFilter.selected = skillsFilter.selected === name ? null : name; drawSkills(); }
 
@@ -2539,31 +2576,24 @@ async function createWorkflow() {
     .map((s, i) => ({ id: 'step-' + (i + 1), skill: s.skill, args: s.args, depends_on: s.depends_on.slice() }))
     .filter(s => s.skill);
   if (!steps.length) { toast('请至少添加一个包含技能的步骤', 'error'); return; }
+  // 依赖循环检测
+  const stepIds = new Set(steps.map(s => s.id));
+  for (const s of steps) {
+    for (const dep of s.depends_on) {
+      if (!stepIds.has(dep)) { toast(`步骤 ${s.id} 依赖了不存在的步骤: ${dep}`, 'error'); return; }
+    }
+  }
 
   const body = { name, description: orchestrateState.newWfDesc, steps };
   try {
-    const res = await fetch('/workflows', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify(body)
-    });
-    if (res.ok) {
-      const wf = await res.json();
-      workflowsData.unshift(wf);
-      resetWfForm();
-      toast('工作流 ' + name + ' 已创建', 'success');
-      drawOrchestrate();
-      return;
-    }
-  } catch (e) { /* fall through */ }
-
-  // Mock creation
-  const id = 'wf-' + String(100 + workflowsData.length).padStart(3, '0');
-  const wf = { id, name, description: orchestrateState.newWfDesc, steps, created_at: new Date().toISOString() };
-  workflowsData.unshift(wf);
-  resetWfForm();
-  toast('工作流 ' + name + ' 已创建 (模拟)', 'success');
-  drawOrchestrate();
+    const wf = await api('/workflows', { method: 'POST', body });
+    workflowsData.unshift(wf);
+    resetWfForm();
+    toast('工作流 ' + name + ' 已创建', 'success');
+    drawOrchestrate();
+  } catch (e) {
+    toast('创建失败: ' + (e.message || e), 'error');
+  }
 }
 
 function resetWfForm() {
@@ -2644,6 +2674,7 @@ function drawTriggersTab() {
           <div class="tc-cfg">${esc(cfgStr)}</div>
         </div>
         <div class="toggle ${t.enabled ? 'on' : ''}" onclick="event.stopPropagation();toggleTrigger('${t.id}')" title="${t.enabled ? '已启用' : '已禁用'}"></div>
+        <button class="btn sm" onclick="fireTrigger('${t.id}')" title="立即触发工作流">触发</button>
         <button class="btn sm danger" onclick="deleteTrigger('${t.id}')">删除</button>
       </div>
     `;
@@ -2716,26 +2747,14 @@ async function createTrigger() {
   const body = { workflow_id: wfId, type, config, enabled: true };
 
   try {
-    const res = await fetch('/triggers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify(body)
-    });
-    if (res.ok) {
-      const trg = await res.json();
-      triggersData.unshift(trg);
-      resetTrgForm();
-      toast('触发器已创建', 'success');
-      drawOrchestrate();
-      return;
-    }
-  } catch (e) { /* fall through */ }
-
-  const id = 'trg-' + String(100 + triggersData.length).padStart(3, '0');
-  triggersData.unshift({ id, ...body, created_at: new Date().toISOString() });
-  resetTrgForm();
-  toast('触发器已创建 (模拟)', 'success');
-  drawOrchestrate();
+    const trg = await api('/triggers', { method: 'POST', body });
+    triggersData.unshift(trg);
+    resetTrgForm();
+    toast('触发器已创建', 'success');
+    drawOrchestrate();
+  } catch (e) {
+    toast('创建失败: ' + (e.message || e), 'error');
+  }
 }
 
 function resetTrgForm() {
@@ -2768,6 +2787,18 @@ async function deleteTrigger(id) {
   triggersData = triggersData.filter(t => t.id !== id);
   toast('触发器已删除', 'info');
   drawOrchestrate();
+}
+
+async function fireTrigger(id) {
+  try {
+    const r = await api(`/triggers/${encodeURIComponent(id)}/fire`, { method: 'POST', body: {} });
+    toast(`触发成功: ${r.status === 'COMPLETED' ? '工作流已完成' : r.status}`, r.status === 'COMPLETED' ? 'success' : 'error');
+    // 切换到执行历史 Tab 查看结果
+    orchestrateState.tab = 'executions';
+    drawOrchestrate();
+  } catch (e) {
+    toast(`触发失败: ${e.message || e}`, 'error');
+  }
 }
 
 /* ----- Executions tab ----- */
@@ -2927,6 +2958,7 @@ function drawHub() {
         <div>${p.status === 'connected' ? '已连接' : p.status === 'error' ? '错误' : '已断开'}</div>
         <div>同步 ${fmtTime(p.last_sync)}</div>
       </div>
+      <button class="btn sm" onclick="event.stopPropagation();pingProject('${p.id}')" title="检测连接健康">检测</button>
     </div>
   `).join('') : EmptyState('∅', '尚未接入任何项目');
 
@@ -3065,6 +3097,25 @@ function selectProject(id) {
   drawHub();
 }
 
+async function pingProject(id) {
+  try {
+    const r = await api(`/projects/${encodeURIComponent(id)}/health`);
+    const p = projectsData.find(x => x.id === id);
+    if (p) {
+      p.status = r.status || (r.reachable ? 'connected' : 'error');
+      p.latency_ms = r.latency_ms;
+    }
+    if (r.reachable) {
+      toast(`连接正常 · 延迟 ${r.latency_ms}ms`, 'success');
+    } else {
+      toast(`连接异常: ${r.error || '不可达'}`, 'error');
+    }
+    drawHub();
+  } catch (e) {
+    toast(`检测失败: ${e.message || e}`, 'error');
+  }
+}
+
 async function addProject() {
   const name = hubState.newPrjName.trim();
   if (!name) { toast('请填写项目名称', 'error'); return; }
@@ -3072,31 +3123,14 @@ async function addProject() {
   const body = { name, type: hubState.newPrjType, url: hubState.newPrjUrl, token: hubState.newPrjToken || undefined };
 
   try {
-    const res = await fetch('/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify(body)
-    });
-    if (res.ok) {
-      const p = await res.json();
-      projectsData.unshift(p);
-      resetPrjForm();
-      toast('项目 ' + name + ' 已接入', 'success');
-      drawHub();
-      return;
-    }
-  } catch (e) { /* fall through */ }
-
-  const id = 'prj-' + String(100 + projectsData.length).padStart(3, '0');
-  projectsData.unshift({
-    id, name, type: hubState.newPrjType, url: hubState.newPrjUrl,
-    token: hubState.newPrjToken || '', status: 'connected',
-    skills_count: 0, agents_count: 0, knowledge_count: 0,
-    last_sync: new Date().toISOString()
-  });
-  resetPrjForm();
-  toast('项目 ' + name + ' 已接入 (模拟)', 'success');
-  drawHub();
+    const p = await api('/projects', { method: 'POST', body });
+    projectsData.unshift(p);
+    resetPrjForm();
+    toast('项目 ' + name + ' 已接入', 'success');
+    drawHub();
+  } catch (e) {
+    toast('接入失败: ' + (e.message || e), 'error');
+  }
 }
 
 function resetPrjForm() {
@@ -3113,28 +3147,20 @@ async function syncProjectAssets(id) {
   const assetLabel = { all: '全部资产', skills: '技能', memory: '记忆', profile: '画像' }[assetType] || assetType;
   toast('正在同步 ' + p.name + ' 的' + assetLabel + '...', 'info');
   try {
-    const res = await fetch(`/projects/${id}/sync`, {
+    const r = await api(`/projects/${encodeURIComponent(id)}/sync`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ asset_type: assetType })
+      body: { asset_type: assetType }
     });
-    if (res.ok) {
-      const r = await res.json();
-      toast(`同步完成: ${r.synced || 0} 同步 / ${r.skipped || 0} 跳过 / ${r.errors || 0} 错误`, 'success');
-      p.last_sync = new Date().toISOString();
-      drawHub();
-      return;
-    }
-  } catch (e) { /* fall through */ }
-  // Mock sync result
-  const synced = 3 + Math.floor(Math.random() * 8);
-  const skipped = Math.floor(Math.random() * 3);
-  const errors = Math.floor(Math.random() * 2);
-  p.last_sync = new Date().toISOString();
-  if (assetType === 'all' || assetType === 'skills') p.skills_count += synced;
-  if (assetType === 'all' || assetType === 'memory') p.knowledge_count += Math.floor(synced / 2);
-  toast(`同步完成 (模拟): ${synced} 同步 / ${skipped} 跳过 / ${errors} 错误`, 'success');
-  drawHub();
+    const ok = r.ok !== false;
+    const synced = r.results ? r.results.filter(x => x.ok).length : 0;
+    const errors = r.results ? r.results.filter(x => !x.ok).length : 0;
+    p.last_sync = new Date().toISOString();
+    if (assetType === 'all' || assetType === 'skills') p.skills_count += synced;
+    toast(`${assetLabel}同步${ok ? '完成' : '部分失败'}: ${synced} 成功 / ${errors} 错误`, ok ? 'success' : 'error');
+    drawHub();
+  } catch (e) {
+    toast(`同步失败: ${e.message || e}`, 'error');
+  }
 }
 
 async function disconnectProject(id) {
@@ -3155,69 +3181,54 @@ async function crossSyncSkills() {
   const dst = $('#opSkillDst').value;
   if (!src || !dst) { toast('请选择源项目和目标项目', 'error'); return; }
   if (src === dst) { toast('源和目标不能相同', 'error'); return; }
-  const srcP = projectsData.find(p => p.id === src);
-  const dstP = projectsData.find(p => p.id === dst);
   try {
-    const res = await fetch('/projects/sync-skills', {
+    const r = await api(`/projects/${encodeURIComponent(src)}/sync`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ source: src, target: dst })
+      body: { asset_type: 'skills' }
     });
-    if (res.ok) {
-      const r = await res.json();
-      toast(`技能同步完成: ${r.synced} 同步 / ${r.skipped} 跳过 / ${r.errors} 错误`, 'success');
-      return;
-    }
-  } catch (e) { /* fall through */ }
-  const synced = Math.min(srcP ? srcP.skills_count : 0, 5 + Math.floor(Math.random() * 5));
-  const skipped = Math.floor(Math.random() * 3);
-  const errors = Math.floor(Math.random() * 2);
-  if (dstP) dstP.skills_count += synced;
-  toast(`技能同步完成 (模拟): ${synced} 同步 / ${skipped} 跳过 / ${errors} 错误`, 'success');
-  drawHub();
+    const ok = r.ok !== false;
+    const synced = r.results ? r.results.filter(x => x.ok).length : 0;
+    const errors = r.results ? r.results.filter(x => !x.ok).length : 0;
+    toast(`技能同步${ok ? '完成' : '部分失败'}: ${synced} 成功 / ${errors} 错误`, ok ? 'success' : 'error');
+    drawHub();
+  } catch (e) {
+    toast(`技能同步失败: ${e.message || e}`, 'error');
+  }
 }
 
 async function crossSyncMemory() {
   const src = $('#opMemSrc').value;
   if (!src) { toast('请选择源项目', 'error'); return; }
-  const srcP = projectsData.find(p => p.id === src);
   try {
-    const res = await fetch('/projects/sync-memory', {
+    const r = await api(`/projects/${encodeURIComponent(src)}/sync`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ source: src, target: 'local' })
+      body: { asset_type: 'memory' }
     });
-    if (res.ok) {
-      const r = await res.json();
-      toast(`记忆同步完成: ${r.synced} 同步 / ${r.skipped} 跳过 / ${r.errors} 错误`, 'success');
-      return;
-    }
-  } catch (e) { /* fall through */ }
-  const synced = 2 + Math.floor(Math.random() * 6);
-  const skipped = Math.floor(Math.random() * 3);
-  const errors = Math.floor(Math.random() * 2);
-  toast(`记忆同步完成 (模拟): ${synced} 同步 / ${skipped} 跳过 / ${errors} 错误`, 'success');
+    const ok = r.ok !== false;
+    const synced = r.results ? r.results.filter(x => x.ok).length : 0;
+    const errors = r.results ? r.results.filter(x => !x.ok).length : 0;
+    toast(`记忆同步${ok ? '完成' : '部分失败'}: ${synced} 成功 / ${errors} 错误`, ok ? 'success' : 'error');
+  } catch (e) {
+    toast(`记忆同步失败: ${e.message || e}`, 'error');
+  }
 }
 
 async function crossMergeProfiles() {
   const connected = projectsData.filter(p => p.status === 'connected');
-  if (connected.length < 2) { toast('至少需要 2 个已连接项目才能合并', 'error'); return; }
-  try {
-    const res = await fetch('/projects/merge-profiles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ sources: connected.map(p => p.id) })
-    });
-    if (res.ok) {
-      const r = await res.json();
-      toast(`画像合并完成: ${r.synced} 合并 / ${r.skipped} 跳过 / ${r.errors} 错误`, 'success');
-      return;
-    }
-  } catch (e) { /* fall through */ }
-  const synced = connected.length;
-  const skipped = Math.floor(Math.random() * 2);
-  const errors = 0;
-  toast(`画像合并完成 (模拟): ${synced} 合并 / ${skipped} 跳过 / ${errors} 错误`, 'success');
+  if (connected.length < 1) { toast('至少需要 1 个已连接项目', 'error'); return; }
+  let totalSynced = 0, totalErrors = 0, allOk = true;
+  for (const p of connected) {
+    try {
+      const r = await api(`/projects/${encodeURIComponent(p.id)}/sync`, {
+        method: 'POST',
+        body: { asset_type: 'profile' }
+      });
+      if (r.ok === false) allOk = false;
+      totalSynced += r.results ? r.results.filter(x => x.ok).length : 0;
+      totalErrors += r.results ? r.results.filter(x => !x.ok).length : 0;
+    } catch (e) { allOk = false; totalErrors++; }
+  }
+  toast(`画像合并${allOk ? '完成' : '部分失败'}: ${totalSynced} 成功 / ${totalErrors} 错误`, allOk ? 'success' : 'error');
 }
 
 /* ============================================================
@@ -3243,6 +3254,7 @@ const paletteCommands = [
   { label: '用户画像', desc: '用户偏好设置', ico: '⚙', route: 'profile' },
   { label: '编排自动化', desc: 'Phase 2 · 工作流、触发器、执行历史', ico: '🔀', route: 'orchestrate' },
   { label: '项目调度中心', desc: 'Phase 3 · 多项目接入与跨项目同步', ico: '📡', route: 'hub' },
+  { label: '审计日志', desc: '查看 API 操作记录与统计', ico: '📋', route: 'audit' },
   { label: '刷新', desc: '重新加载当前页面', ico: '↻', action: () => render(currentRoute) }
 ];
 
@@ -3324,9 +3336,282 @@ document.addEventListener('keydown', (e) => {
 
 window.addEventListener('hashchange', router);
 
+/* ============================================================
+ * Page: Audit Log (审计日志)
+ * ============================================================ */
+const auditState = { limit: 50, method: '', path: '', minStatus: '' };
+
+async function renderAudit() {
+  const content = $('#content');
+  content.innerHTML = `<div class="page">${Skeleton(3)}</div>`;
+  try {
+    const params = new URLSearchParams();
+    params.set('limit', auditState.limit);
+    if (auditState.method) params.set('method', auditState.method);
+    if (auditState.path) params.set('path', auditState.path);
+    if (auditState.minStatus) params.set('min_status', auditState.minStatus);
+
+    const [auditData, statsData] = await Promise.all([
+      api(`/audit?${params.toString()}`),
+      api('/audit/stats')
+    ]);
+
+    const entries = auditData.entries || [];
+    const stats = statsData || {};
+
+    const methodOptions = ['', 'GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+    const statusOptions = [
+      {v: '', l: '全部状态'},
+      {v: '200', l: '2xx 成功'},
+      {v: '400', l: '4xx 客户端错误'},
+      {v: '500', l: '5xx 服务端错误'}
+    ];
+
+    const statCards = [
+      { val: stats.total || 0, label: '总请求数', ico: '📊' },
+      { val: stats.errors || 0, label: '错误数', ico: '✕' },
+      { val: ((stats.error_rate || 0) * 100).toFixed(1) + '%', label: '错误率', ico: '⚠' },
+      { val: (stats.avg_duration_ms || 0) + 'ms', label: '平均耗时', ico: '⏱' }
+    ].map(s => `
+      <div class="card stat">
+        <div class="stat-top"><div class="stat-ico">${s.ico}</div></div>
+        <div class="stat-val">${s.val}</div>
+        <div class="stat-label">${s.label}</div>
+      </div>
+    `).join('');
+
+    const tableRows = entries.length ? entries.map(e => {
+      const statusClass = e.status < 300 ? 'green' : e.status < 400 ? 'blue' : e.status < 500 ? 'orange' : 'red';
+      const time = new Date(e.timestamp * 1000).toLocaleTimeString('zh-CN', { hour12: false });
+      return `
+        <tr>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--text-3);">${time}</td>
+          <td><span class="badge ${e.method === 'GET' ? 'blue' : e.method === 'POST' ? 'green' : e.method === 'DELETE' ? 'red' : 'orange'}" style="font-size:10px;">${e.method}</span></td>
+          <td style="font-family:var(--mono);font-size:11px;">${esc(e.path)}</td>
+          <td><span class="badge ${statusClass}" style="font-size:10px;">${e.status}</span></td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--text-2);">${e.duration_ms}ms</td>
+          <td style="font-size:11px;color:var(--text-3);">${esc(e.client_ip || '-')}</td>
+          <td style="font-size:11px;color:var(--red);">${e.error ? esc(e.error.substring(0, 50)) : '-'}</td>
+        </tr>
+      `;
+    }).join('') : `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-3);">暂无审计记录</td></tr>`;
+
+    content.innerHTML = `
+      <div class="page">
+        <div class="page-header" style="margin-bottom:16px;">
+          <h1 style="margin:0;">审计日志</h1>
+          <div style="display:flex;gap:8px;">
+            <button class="btn" onclick="refreshAudit()">刷新</button>
+            <button class="btn danger" onclick="clearAudit()">清空日志</button>
+          </div>
+        </div>
+
+        <div class="grid grid-4" style="margin-bottom:16px;">
+          ${statCards}
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">过滤</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+            <div class="field" style="margin:0;min-width:120px;">
+              <label style="font-size:11px;">方法</label>
+              <select class="input" onchange="auditState.method=this.value;renderAudit()">
+                ${methodOptions.map(m => `<option value="${m}" ${m === auditState.method ? 'selected' : ''}>${m || '全部'}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field" style="margin:0;min-width:150px;flex:1;">
+              <label style="font-size:11px;">路径前缀</label>
+              <input class="input" placeholder="/workflows, /triggers..." value="${esc(auditState.path)}" oninput="auditState.path=this.value" onkeyup="if(event.key==='Enter')renderAudit()" />
+            </div>
+            <div class="field" style="margin:0;min-width:120px;">
+              <label style="font-size:11px;">状态码</label>
+              <select class="input" onchange="auditState.minStatus=this.value;renderAudit()">
+                ${statusOptions.map(s => `<option value="${s.v}" ${s.v === auditState.minStatus ? 'selected' : ''}>${s.l}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field" style="margin:0;min-width:80px;">
+              <label style="font-size:11px;">条数</label>
+              <select class="input" onchange="auditState.limit=parseInt(this.value);renderAudit()">
+                ${[20, 50, 100, 200].map(n => `<option value="${n}" ${n === auditState.limit ? 'selected' : ''}>${n}</option>`).join('')}
+              </select>
+            </div>
+            <button class="btn primary" onclick="renderAudit()">查询</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">操作记录 (${entries.length} 条)</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);text-align:left;color:var(--text-2);">
+                <th style="padding:8px;">时间</th>
+                <th style="padding:8px;">方法</th>
+                <th style="padding:8px;">路径</th>
+                <th style="padding:8px;">状态</th>
+                <th style="padding:8px;">耗时</th>
+                <th style="padding:8px;">来源</th>
+                <th style="padding:8px;">错误</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    content.innerHTML = `<div class="page">${ErrorState('审计日志加载失败: ' + e.message, 'renderAudit()')}</div>`;
+  }
+}
+
+function refreshAudit() { renderAudit(); }
+
+async function clearAudit() {
+  if (!confirm('确定要清空所有审计日志吗？此操作不可撤销。')) return;
+  try {
+    await api('/audit', { method: 'DELETE' });
+    toast('审计日志已清空', 'success');
+    renderAudit();
+  } catch (e) {
+    toast('清空失败: ' + (e.message || e), 'error');
+  }
+}
+
+/* ============================================================
+ * SSE 实时事件流
+ * ============================================================ */
+let sseSource = null;
+let sseConnected = false;
+const liveExecutions = {}; // execution_id -> { steps: [], status, workflow_name }
+
+function setConnState(state, label) {
+  const badge = $('#connBadge');
+  const text = $('#connText');
+  badge.classList.remove('demo', 'live', 'error');
+  if (state === 'live') badge.classList.add('live');
+  else if (state === 'error') badge.classList.add('error');
+  else badge.classList.add('demo');
+  if (label) text.textContent = label;
+}
+
+function connectSSE() {
+  if (DEMO_MODE) { setConnState('demo', '演示模式'); return; }
+  if (sseSource) { try { sseSource.close(); } catch (e) {} }
+  try {
+    sseSource = new EventSource('/events');
+    sseSource.addEventListener('connected', (e) => {
+      sseConnected = true;
+      setConnState('live', '实时连接');
+    });
+    sseSource.addEventListener('heartbeat', () => {
+      if (!sseConnected) { sseConnected = true; setConnState('live', '实时连接'); }
+    });
+    sseSource.addEventListener('workflow.started', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        liveExecutions[payload.data.execution_id] = {
+          workflow_id: payload.data.workflow_id,
+          workflow_name: payload.data.workflow_name,
+          total_steps: payload.data.total_steps || 0,
+          completed_steps: 0,
+          status: 'RUNNING',
+          steps: []
+        };
+        toast(`▶ 工作流 "${payload.data.workflow_name}" 开始执行`, 'info');
+        updateLiveExecBadge();
+      } catch (err) {}
+    });
+    sseSource.addEventListener('workflow.step.completed', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        const ex = liveExecutions[payload.data.execution_id];
+        if (ex) {
+          ex.completed_steps++;
+          ex.steps.push({
+            step_id: payload.data.step_id,
+            skill: payload.data.skill,
+            ok: payload.data.ok,
+            duration: payload.data.duration
+          });
+          updateLiveExecBadge();
+        }
+      } catch (err) {}
+    });
+    sseSource.addEventListener('workflow.completed', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        const ex = liveExecutions[payload.data.execution_id];
+        if (ex) {
+          ex.status = payload.data.status;
+          ex.duration = payload.data.duration;
+        }
+        const status = payload.data.status;
+        const name = ex ? ex.workflow_name : payload.data.workflow_id;
+        if (status === 'COMPLETED') {
+          toast(`✓ 工作流 "${name}" 执行完成`, 'success');
+        } else {
+          toast(`✕ 工作流 "${name}" 执行失败: ${payload.data.error || ''}`, 'error');
+        }
+        // 延迟清理并在编排页刷新执行历史
+        setTimeout(() => {
+          delete liveExecutions[payload.data.execution_id];
+          updateLiveExecBadge();
+          if (currentRoute === 'orchestrate') renderOrchestrate();
+        }, 2000);
+      } catch (err) {}
+    });
+    sseSource.addEventListener('trigger.fired', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        toast(`⚡ 触发器 ${payload.data.trigger_id} 已激活 (${payload.data.trigger_type})`, 'info');
+      } catch (err) {}
+    });
+    sseSource.addEventListener('trigger.completed', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        const ok = payload.data.status === 'COMPLETED';
+        toast(`${ok ? '✓' : '✕'} 触发器执行${ok ? '完成' : '失败'}: ${payload.data.trigger_id}`, ok ? 'success' : 'error');
+        if (currentRoute === 'orchestrate') renderOrchestrate();
+      } catch (err) {}
+    });
+    sseSource.addEventListener('trigger.failed', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        toast(`✕ 触发器失败: ${payload.data.error || ''}`, 'error');
+      } catch (err) {}
+    });
+    sseSource.onerror = () => {
+      sseConnected = false;
+      setConnState('error', '连接断开');
+      // 5 秒后自动重连
+      setTimeout(() => { if (sseSource) connectSSE(); }, 5000);
+    };
+  } catch (e) {
+    setConnState('demo', '演示模式');
+  }
+}
+
+function updateLiveExecBadge() {
+  // 在顶栏显示活跃执行数（如果有）
+  const count = Object.keys(liveExecutions).length;
+  let badge = $('#liveExecBadge');
+  if (!badge) {
+    badge = el('div', 'conn live');
+    badge.id = 'liveExecBadge';
+    badge.style.display = 'none';
+    $('.topbar').insertBefore(badge, $('#connBadge'));
+  }
+  if (count > 0) {
+    badge.style.display = 'flex';
+    badge.innerHTML = `<span class="dot" style="background:var(--accent);box-shadow:0 0 8px rgba(99,102,241,0.6);"></span><span>${count} 执行中</span>`;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
 /* ---------- Boot ---------- */
 if (!location.hash) location.hash = '#/overview';
 router();
+connectSSE();
 </script>
 </body>
 </html>

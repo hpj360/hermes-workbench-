@@ -8,7 +8,6 @@ from __future__ import annotations
 import http.client
 import json
 import threading
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -18,19 +17,6 @@ from hermes.workbench.server import make_server
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def skills_dir(tmp_path: Path) -> Path:
-    base = tmp_path / "skills"
-    for name in ("alpha", "beta"):
-        s = base / name
-        s.mkdir(parents=True)
-        (s / "SKILL.md").write_text(
-            f"---\nname: {name}\ndescription: {name} skill\n---\n# {name}\nHello {name}.\n",
-            encoding="utf-8",
-        )
-    return base
 
 
 @pytest.fixture
@@ -58,6 +44,15 @@ def patched_services(monkeypatch, skills_dir, tmp_path):
     trigger_store = TriggerStore(state_dir=state)
     project_registry = ProjectRegistry(state_dir=state)
     asset_sync = AssetSync(registry=project_registry, runner=runner, memory=memory)
+    from hermes.workbench.trigger_engine import TriggerEngine
+    trigger_engine = TriggerEngine(
+        trigger_store=trigger_store,
+        workflow_store=wf_store,
+        workflow_runner=wf_runner,
+    )
+    from hermes.workbench.audit import AuditLog, reset_audit_log
+    reset_audit_log()
+    audit_log = AuditLog(state_dir=state)
 
     monkeypatch.setattr(cli_mod, "_make_runner", lambda: runner)
     monkeypatch.setattr(cli_mod, "_make_memory", lambda: memory)
@@ -69,6 +64,11 @@ def patched_services(monkeypatch, skills_dir, tmp_path):
     monkeypatch.setattr(cli_mod, "_make_trigger_store", lambda: trigger_store)
     monkeypatch.setattr(cli_mod, "_make_project_registry", lambda: project_registry)
     monkeypatch.setattr(cli_mod, "_make_asset_sync", lambda: asset_sync)
+    monkeypatch.setattr(cli_mod, "_make_trigger_engine", lambda: trigger_engine)
+    monkeypatch.setattr(cli_mod, "_make_audit_log", lambda: audit_log)
+    # Patch the global audit log singleton
+    from hermes.workbench import audit as audit_mod
+    monkeypatch.setattr(audit_mod, "_global_audit", audit_log)
     return {
         "store": store,
         "registry": registry,
@@ -78,6 +78,8 @@ def patched_services(monkeypatch, skills_dir, tmp_path):
         "trigger_store": trigger_store,
         "project_registry": project_registry,
         "asset_sync": asset_sync,
+        "trigger_engine": trigger_engine,
+        "audit_log": audit_log,
     }
 
 
@@ -695,6 +697,55 @@ def test_trigger_toggle_missing_enabled(client):
     assert resp.status == 400
 
 
+def test_trigger_fire_manual(client):
+    """POST /triggers/<id>/fire 手动触发工作流执行。"""
+    wf_id = _make_workflow(client)
+    tr_id = _json(client("POST", "/triggers", body={
+        "workflow_id": wf_id, "type": "cron", "config": {"schedule": "0 9 * * *"},
+    }))["id"]
+    resp = client("POST", f"/triggers/{tr_id}/fire", body={})
+    assert resp.status == 200
+    result = _json(resp)
+    assert result["trigger_id"] == tr_id
+    assert result["workflow_id"] == wf_id
+    assert result["status"] in {"COMPLETED", "FAILED"}
+
+
+def test_trigger_fire_missing(client):
+    """触发不存在的触发器返回 404。"""
+    resp = client("POST", "/triggers/tr-nonexistent/fire", body={})
+    assert resp.status == 404
+
+
+def test_webhook_receive_and_fire(client):
+    """POST /webhooks/<id> 接收 webhook 并触发工作流。"""
+    wf_id = _make_workflow(client)
+    tr_id = _json(client("POST", "/triggers", body={
+        "workflow_id": wf_id, "type": "webhook", "config": {"secret": ""},
+    }))["id"]
+    resp = client("POST", f"/webhooks/{tr_id}", body={"event": "push", "repo": "o/r"})
+    assert resp.status == 200
+    result = _json(resp)
+    assert result["trigger_id"] == tr_id
+    assert result["status"] in {"COMPLETED", "FAILED"}
+
+
+def test_webhook_missing_trigger(client):
+    """webhook 端点对不存在的触发器返回 404。"""
+    resp = client("POST", "/webhooks/tr-nonexistent", body={})
+    assert resp.status == 404
+
+
+def test_webhook_wrong_type(client):
+    """webhook 端点对 cron 类型触发器返回 404（类型不匹配）。"""
+    wf_id = _make_workflow(client)
+    tr_id = _json(client("POST", "/triggers", body={
+        "workflow_id": wf_id, "type": "cron", "config": {"schedule": "0 9 * * *"},
+    }))["id"]
+    resp = client("POST", f"/webhooks/{tr_id}", body={})
+    assert resp.status == 404
+
+
 # ---------------------------------------------------------------------------
 # Phase 3: projects
 # ---------------------------------------------------------------------------
@@ -805,3 +856,124 @@ def test_project_sync_all(client):
 def test_project_sync_missing(client):
     resp = client("POST", "/projects/prj-nonexistent/sync", body={"asset_type": "all"})
     assert resp.status == 404
+
+
+def test_project_health_local(client, tmp_path):
+    """GET /projects/<id>/health 检测本地项目健康状态。"""
+    # 创建一个真实存在的本地目录
+    local_dir = str(tmp_path / "local-project")
+    import os
+    os.makedirs(local_dir, exist_ok=True)
+    prj_id = _json(client("POST", "/projects", body={
+        "name": "本地项目", "type": "local", "url": local_dir,
+    }))["id"]
+    resp = client("GET", f"/projects/{prj_id}/health")
+    assert resp.status == 200
+    result = _json(resp)
+    assert result["reachable"] is True
+    assert result["status"] == "connected"
+    assert result["latency_ms"] >= 0
+
+
+def test_project_health_local_not_found(client):
+    """本地项目路径不存在时健康检测返回 reachable=False。"""
+    prj_id = _json(client("POST", "/projects", body={
+        "name": "缺失项目", "type": "local", "url": "/nonexistent/path/xyz",
+    }))["id"]
+    resp = client("GET", f"/projects/{prj_id}/health")
+    assert resp.status == 200
+    result = _json(resp)
+    assert result["reachable"] is False
+    assert result["status"] == "error"
+    assert result["error"] is not None
+
+
+def test_project_health_missing(client):
+    """检测不存在的项目返回 404。"""
+    resp = client("GET", "/projects/prj-nonexistent/health")
+    assert resp.status == 404
+
+
+# ---------------------------------------------------------------------------
+# Audit log
+# ---------------------------------------------------------------------------
+
+
+def test_audit_records_requests(client):
+    """API 请求被审计日志记录。"""
+    # 发起几个请求
+    client("GET", "/health")
+    client("GET", "/skills")
+    client("GET", "/nonexistent")
+
+    resp = client("GET", "/audit?limit=10")
+    assert resp.status == 200
+    data = _json(resp)
+    assert data["total"] >= 3
+    # 最新在前
+    paths = [e["path"] for e in data["entries"]]
+    assert "/nonexistent" in paths
+    assert "/skills" in paths
+
+
+def test_audit_filter_by_method(client):
+    """审计日志支持按 method 过滤。"""
+    client("GET", "/health")
+    client("GET", "/skills")
+
+    resp = client("GET", "/audit?method=GET&limit=5")
+    assert resp.status == 200
+    for entry in _json(resp)["entries"]:
+        assert entry["method"] == "GET"
+
+
+def test_audit_filter_by_path(client):
+    """审计日志支持按 path 前缀过滤。"""
+    client("GET", "/health")
+    client("GET", "/skills")
+
+    resp = client("GET", "/audit?path=/skills")
+    assert resp.status == 200
+    for entry in _json(resp)["entries"]:
+        assert entry["path"].startswith("/skills")
+
+
+def test_audit_stats(client):
+    """GET /audit/stats 返回统计摘要。"""
+    client("GET", "/health")
+    client("GET", "/nonexistent")  # 404
+
+    resp = client("GET", "/audit/stats")
+    assert resp.status == 200
+    stats = _json(resp)
+    assert stats["total"] >= 2
+    assert stats["errors"] >= 1  # 至少有 1 个 404
+    assert "error_rate" in stats
+    assert "avg_duration_ms" in stats
+
+
+def test_audit_clear(client):
+    """DELETE /audit 清空审计日志。"""
+    client("GET", "/health")
+    resp = client("DELETE", "/audit")
+    assert resp.status == 200
+    assert _json(resp)["cleared"] >= 1
+
+    # 清空后查询应为空
+    resp = client("GET", "/audit")
+    # 注意：DELETE 本身也会被记录
+    data = _json(resp)
+    assert data["total"] >= 1  # 至少有 DELETE /audit 这条
+
+
+def test_audit_records_errors(client):
+    """4xx/5xx 响应被审计日志记录并标记 error。"""
+    client("GET", "/workflows/wf-nonexistent")
+
+    resp = client("GET", "/audit?min_status=400&limit=10")
+    assert resp.status == 200
+    data = _json(resp)
+    assert data["total"] >= 1
+    for entry in data["entries"]:
+        assert entry["status"] >= 400
+        assert entry["error"] is not None

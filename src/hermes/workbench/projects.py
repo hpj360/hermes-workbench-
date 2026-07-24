@@ -169,3 +169,91 @@ class ProjectRegistry:
             "total_agents": sum(p.agents_count for p in projects),
             "total_knowledge": sum(p.knowledge_count for p in projects),
         }
+
+    def ping(self, project_id: str) -> dict[str, Any]:
+        """检测项目连接健康状态。
+
+        Returns:
+            包含 ``reachable``、``latency_ms``、``status``、``error`` 的字典。
+            项目不存在时返回 ``{"reachable": False, "error": "not found"}``。
+        """
+        project = self.get(project_id)
+        if project is None:
+            return {"reachable": False, "latency_ms": 0, "error": "not found"}
+
+        start = time.time()
+        if project.type == "local":
+            reachable, error = self._ping_local(project)
+        elif project.type == "github":
+            reachable, error = self._ping_github(project)
+        elif project.type == "api":
+            reachable, error = self._ping_api(project)
+        else:
+            reachable, error = False, f"unsupported type: {project.type}"
+
+        latency_ms = round((time.time() - start) * 1000, 1)
+
+        # 根据检测结果更新状态
+        new_status = "connected" if reachable else "error"
+        self.update_status(project_id, new_status)
+
+        return {
+            "reachable": reachable,
+            "latency_ms": latency_ms,
+            "status": new_status,
+            "error": error if not reachable else None,
+        }
+
+    @staticmethod
+    def _ping_local(project: ProjectConnection) -> tuple[bool, str | None]:
+        """检测本地项目：验证路径存在且为目录。"""
+        import os
+        path = project.url
+        if not path:
+            return False, "url is empty"
+        if os.path.isdir(path):
+            return True, None
+        return False, f"path not found or not a directory: {path}"
+
+    @staticmethod
+    def _ping_github(project: ProjectConnection) -> tuple[bool, str | None]:
+        """检测 GitHub 项目：尝试访问 GitHub API（简化验证）。"""
+        from urllib.error import URLError
+        from urllib.request import Request, urlopen
+        repo = project.url or project.config.get("repo", "")
+        if not repo:
+            return False, "repo is empty"
+        # 标准化 repo 格式：移除 github.com/ 前缀
+        repo = repo.replace("github.com/", "").strip("/")
+        api_url = f"https://api.github.com/repos/{repo}"
+        headers = {"Accept": "application/vnd.github.v3+json"}
+        if project.token:
+            headers["Authorization"] = f"Bearer {project.token}"
+        try:
+            req = Request(api_url, headers=headers)
+            urlopen(req, timeout=5)
+            return True, None
+        except URLError as e:
+            return False, f"unreachable: {e.reason}"
+        except Exception as e:  # noqa: BLE001
+            return False, str(e)
+
+    @staticmethod
+    def _ping_api(project: ProjectConnection) -> tuple[bool, str | None]:
+        """检测远程 API 项目：尝试 GET {url}/health。"""
+        from urllib.error import URLError
+        from urllib.request import Request, urlopen
+        if not project.url:
+            return False, "url is empty"
+        health_url = project.url.rstrip("/") + "/health"
+        headers = {}
+        if project.token:
+            headers["Authorization"] = f"Bearer {project.token}"
+        try:
+            req = Request(health_url, headers=headers)
+            urlopen(req, timeout=5)
+            return True, None
+        except URLError as e:
+            return False, f"unreachable: {e.reason}"
+        except Exception as e:  # noqa: BLE001
+            return False, str(e)

@@ -1,0 +1,28 @@
+# Docker Compose for Hermes Workbench development
+# Usage: docker compose up --build
+services:
+  workbench:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Set API token to enable authentication (leave empty to disable)
+      - HERMES_API_TOKEN=${HERMES_API_TOKEN:-}
+      # Default skill timeout in seconds
+      - HERMES_SKILL_DEFAULT_TIMEOUT=${HERMES_SKILL_DEFAULT_TIMEOUT:-300}
+    volumes:
+      # Persist state and cache across container restarts
+      - workbench-state:/app/.state
+      - workbench-cache:/app/.cache
+      # Mount skills directory for development (optional)
+      # - ./skills:/app/skills:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  workbench-state:
+  workbench-cache:

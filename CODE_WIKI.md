@@ -115,8 +115,13 @@ Hermes 是一个**独立于主仓库（`/workspace/OpenClaw/openclaw-main`）的
 │       ├── skill_runner.py        # [P1] Skill 发现/执行/脱敏
 │       ├── agent_loop.py          # [P1] 顺序 Agent 循环 + 记忆记录
 │       ├── cli.py                 # [P2] 任务运行时 + 17 子命令 + 服务工厂
-│       ├── server.py              # [P3] Dashboard HTTP API (15 路由)
-│       └── github_sync.py         # [P4] GitHub Issues 同步层
+│       ├── server.py              # [P3] Dashboard HTTP API (44 路由)
+│       ├── github_sync.py         # [P4] GitHub Issues 同步层
+│       ├── workflow.py            # [P5] DAG 工作流模型 + 拓扑排序执行引擎
+│       ├── triggers.py            # [P5] GitHub/cron/webhook 触发器
+│       ├── projects.py            # [P6] 多项目接入管理 (local/github/api)
+│       ├── sync.py                # [P6] 跨项目资产同步 (技能/记忆/画像)
+│       └── events.py              # [P7] SSE 事件总线 + 实时推送
 ├── tests/                         # 测试 (259 个用例)
 │   ├── conftest.py                # reset_settings / tmp_state_dir fixtures
 │   ├── test_config.py             # 5
@@ -131,7 +136,8 @@ Hermes 是一个**独立于主仓库（`/workspace/OpenClaw/openclaw-main`）的
 │       ├── test_github_sync.py    # 21
 │       ├── test_memory.py         # 21
 │       ├── test_persistence.py    # 13
-│       ├── test_server.py         # 24
+│       ├── test_server.py         # 75
+│       ├── test_events.py         # 11
 │       └── test_skill_runner.py   # 30
 ├── skills/                        # 24 个沉淀 skills
 ├── knowledge/                     # 4 篇知识文档
@@ -365,19 +371,21 @@ hermes workbench
 
 基于 `http.server.ThreadingHTTPServer` 的无状态 RESTful JSON API，所有状态经 `cli.py` 服务工厂流转。
 
-**路由表**（21 条，正则匹配 + 命名组）：
+**路由表**（44 条，正则匹配 + 命名组）：
 
 | 方法 | 路径 | 处理函数 | 说明 |
 |------|------|---------|------|
 | GET | `/health` | `h_get_health` | 健康检查 |
 | GET | `/skills` | `h_get_skills` | 列出所有 skills |
 | GET | `/skills/<name>` | `h_get_skill` | skill 详情 |
+| POST | `/skills/<name>/run` | `h_post_skill_run` | 运行 skill（body: {args, timeout?}） |
 | GET | `/memory/facts` | `h_get_facts` | 列出 facts |
 | POST | `/memory/facts` | `h_post_facts` | 创建 fact（body: {key, value}） |
 | GET | `/memory/facts/<key>` | `h_get_fact` | 获取 fact |
 | DELETE | `/memory/facts/<key>` | `h_delete_fact` | 删除 fact |
-| GET | `/memory/episodes` | `h_get_episodes` | 列出 episodes（?kind=） |
+| GET | `/memory/episodes` | `h_get_episodes` | 列出 episodes（?kind=&limit=） |
 | GET | `/memory/profile` | `h_get_profile` | 获取用户画像 |
+| PUT | `/memory/profile` | `h_put_profile` | 更新用户画像 |
 | POST | `/tasks` | `h_post_tasks` | 创建任务（body: {plan, run?, ...}） |
 | GET | `/tasks` | `h_get_tasks` | 列出任务 |
 | GET | `/tasks/<task_id>` | `h_get_task` | 任务详情 |
@@ -390,6 +398,25 @@ hermes workbench
 | GET | `/registry/knowledge` | `h_get_registry_knowledge` | 跨源列出知识文档（?source=） |
 | GET | `/registry/user` | `h_get_registry_user` | 合并后的用户画像 |
 | GET | `/registry/summary` | `h_get_registry_summary` | 注册中心摘要统计 |
+| GET | `/search?q=` | `h_search` | 全局搜索 skills / facts / tasks |
+| GET | `/workflows` | `h_get_workflows` | 列出工作流 |
+| POST | `/workflows` | `h_post_workflows` | 创建工作流 |
+| GET | `/workflows/<wf_id>` | `h_get_workflow` | 工作流详情 |
+| PUT | `/workflows/<wf_id>` | `h_put_workflow` | 更新工作流 |
+| DELETE | `/workflows/<wf_id>` | `h_delete_workflow` | 删除工作流 |
+| POST | `/workflows/<wf_id>/execute` | `h_post_workflow_execute` | 执行工作流 |
+| GET | `/workflows/<wf_id>/executions` | `h_get_workflow_executions` | 执行历史 |
+| GET | `/triggers` | `h_get_triggers` | 列出触发器（?workflow_id=） |
+| POST | `/triggers` | `h_post_triggers` | 创建触发器 |
+| DELETE | `/triggers/<tr_id>` | `h_delete_trigger` | 删除触发器 |
+| PATCH | `/triggers/<tr_id>` | `h_patch_trigger` | 启停触发器 |
+| GET | `/projects` | `h_get_projects` | 列出项目 |
+| POST | `/projects` | `h_post_projects` | 接入项目 |
+| GET | `/projects/summary` | `h_get_projects_summary` | 项目汇总统计 |
+| GET | `/projects/<prj_id>` | `h_get_project` | 项目详情 |
+| DELETE | `/projects/<prj_id>` | `h_delete_project` | 删除项目 |
+| POST | `/projects/<prj_id>/sync` | `h_post_project_sync` | 资产同步 |
+| GET | `/events` | `h_get_events` | SSE 实时事件流 |
 
 **关键函数**：`make_server(host, port) -> ThreadingHTTPServer`、`run_server(host="127.0.0.1", port=8080)`
 
